@@ -20,6 +20,10 @@
       {
         "command": "codeCompanion.askSelection",
         "title": "Code Companion: Ask Selection"
+      },
+      {
+        "command": "codeCompanion.askTerminalSelection",
+        "title": "Code Companion: Ask Terminal Selection"
       }
     ],
     "keybindings": [
@@ -28,6 +32,12 @@
         "key": "ctrl+shift+j",
         "mac": "cmd+shift+j",
         "when": "editorTextFocus"
+      },
+      {
+        "command": "codeCompanion.askTerminalSelection",
+        "key": "ctrl+shift+j",
+        "mac": "cmd+shift+j",
+        "when": "terminalFocus"
       }
     ]
   },
