@@ -1,0 +1,51 @@
+{
+  "name": "code-companion",
+  "displayName": "Code Companion",
+  "description": "選択したコードやエラーをその場でAIに質問しながら学べる、学習向けAIコンパニオン",
+  "version": "0.0.1",
+  "publisher": "TODO-publisher",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": {
+    "vscode": "^1.90.0",
+    "node": ">=22.13.0"
+  },
+  "categories": [
+    "Education"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "codeCompanion.askSelection",
+        "title": "Code Companion: Ask Selection"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "codeCompanion.askSelection",
+        "key": "ctrl+shift+j",
+        "mac": "cmd+shift+j",
+        "when": "editorTextFocus"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.1",
+    "@types/vscode": "^1.90.0",
+    "eslint": "^10.9.1",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.6",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.69.0"
+  }
+}
