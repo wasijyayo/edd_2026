@@ -1,0 +1,10 @@
+# 改行コードはリポジトリ上でLFに統一する。
+# Windows と macOS が混在しても、改行差分だけのdiffが出ないようにするため。
+* text=auto eol=lf
+
+# バイナリ
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.vsix binary
