@@ -28,6 +28,10 @@
       {
         "command": "codeCompanion.askClipboard",
         "title": "Code Companion: Ask Clipboard"
+      },
+      {
+        "command": "codeCompanion.debugVscodeLmProvider",
+        "title": "Code Companion: [Debug] VSCodeLMProvider Probe (#11, 使い捨て)"
       }
     ],
     "keybindings": [
