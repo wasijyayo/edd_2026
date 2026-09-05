@@ -40,7 +40,19 @@ export function activate(context: vscode.ExtensionContext): void {
   async function openChatForContext(codeContext: CodeContext): Promise<void> {
     const contextId = pendingChatContext.set(codeContext);
     logContext(codeContext.source, codeContext);
-    await openCodeCompanionChat(contextId, vscode.commands.executeCommand);
+
+    try {
+      await openCodeCompanionChat(contextId, vscode.commands.executeCommand);
+    } catch (error) {
+      // Chat が開かなければ Participant は呼ばれず、保持した文脈は永久に取り出されない。
+      // 捨てるのは確実だが、黙って捨てるとユーザーは押した操作が無反応にしか見えない。
+      // 破棄・ログ・通知の3つを揃える。
+      pendingChatContext.discard(contextId);
+      channel.appendLine(`Chat を開けませんでした: ${String(error)}`);
+      vscode.window.showErrorMessage(
+        "Code Companion Chat を開けませんでした。GitHub Copilot Chat が有効か確認してください。",
+      );
+    }
   }
 
   const chatParticipant = vscode.chat.createChatParticipant(

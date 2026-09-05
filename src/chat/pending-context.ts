@@ -24,4 +24,18 @@ export class PendingChatContext {
     this.values.delete(id);
     return context;
   }
+
+  /**
+   * 使われないと確定した文脈を捨てる。
+   *
+   * set() した直後に Chat を開けなかった場合、Participant は呼ばれず take() も走らない。
+   * 放置すると、送信されなかった内容（ターミナルやクリップボードの中身）が
+   * セッション終了まで残る。取り出す値が無いので take() ではなくこちらを使う。
+   *
+   * これは「開けなかった」と確定した経路の後始末に限る。ユーザーが Chat を
+   * 開いたまま送らずに閉じた場合はここへ来ない。その回収は #39 で扱う。
+   */
+  discard(id: string): void {
+    this.values.delete(id);
+  }
 }

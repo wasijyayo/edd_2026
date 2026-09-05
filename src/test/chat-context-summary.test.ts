@@ -41,4 +41,9 @@ test("消費済みの文脈IDには復帰手段を含めて案内する", () => 
   // 「文脈なし」と同じ文言に落とすと、ユーザーの質問が捨てられたことが伝わらない。
   expect(CONSUMED_CONTEXT_MESSAGE).not.toBe(describePendingContext(undefined));
   expect(CONSUMED_CONTEXT_MESSAGE).toContain("もう一度");
+
+  // この案内は editor / terminal / clipboard すべての経路に返る。
+  // 「コードを選択」のような editor 専用の表現は、他の経路で実行できない案内になる。
+  expect(CONSUMED_CONTEXT_MESSAGE).not.toContain("コードを選択");
+  expect(CONSUMED_CONTEXT_MESSAGE).not.toContain("ショートカット");
 });

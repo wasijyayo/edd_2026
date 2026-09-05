@@ -58,3 +58,41 @@ test("Chatを2回開いた場合も文脈を別々に保持する", () => {
   expect(pending.take(firstId)).toBe(first);
   expect(pending.take(secondId)).toBe(second);
 });
+
+test("Chatを開けなかった文脈は破棄して残さない", () => {
+  const pending = new PendingChatContext();
+  const context = {
+    code: "secret-token",
+    source: "clipboard" as const,
+    contextLevel: 1 as const,
+    surroundingCode: "",
+  };
+  const id = pending.set(context);
+
+  pending.discard(id);
+
+  // 送信されなかった内容がセッション中に残り続けないこと。
+  expect(pending.take(id)).toBeUndefined();
+});
+
+test("破棄しても他の文脈には影響しない", () => {
+  const pending = new PendingChatContext();
+  const kept = {
+    code: "kept",
+    source: "editor" as const,
+    contextLevel: 2 as const,
+    surroundingCode: "",
+  };
+  const discarded = {
+    code: "discarded",
+    source: "editor" as const,
+    contextLevel: 2 as const,
+    surroundingCode: "",
+  };
+  const keptId = pending.set(kept);
+  const discardedId = pending.set(discarded);
+
+  pending.discard(discardedId);
+
+  expect(pending.take(keptId)).toBe(kept);
+});
