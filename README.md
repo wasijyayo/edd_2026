@@ -66,5 +66,5 @@ npm run compile
 npm run check:concepts   # Concept一覧と生成物が一致しているか検査する
 ```
 
-VS Codeで `apps/vscode-extension` を開き、`F5` でExtension Development Hostを起動します。
+VS Codeでリポジトリルートを開き、`F5` でExtension Development Hostを起動します。
 全体方針は [`docs/architecture.md`](docs/architecture.md) を参照する。
