@@ -16,11 +16,17 @@
     "gen:concepts": "node scripts/gen-concepts.mjs",
     "check:concepts": "node scripts/gen-concepts.mjs --check",
     "test:unit": "vitest run src",
-    "test:watch": "vitest src"
+    "test:watch": "vitest src",
+    "lint": "eslint src",
+    "check:types": "tsc -p tsconfig.test.json"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^24.0.0",
+    "eslint": "^10.9.1",
+    "eslint-config-prettier": "^10.1.8",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.69.0",
     "vitest": "^5.0.0"
   }
 }

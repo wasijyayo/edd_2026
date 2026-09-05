@@ -8,13 +8,13 @@
     "packages/*"
   ],
   "scripts": {
-    "compile": "npm run compile --workspace=@gakushu-sochi/domain && npm run compile --workspace=@gakushu-sochi/api && npm run compile --workspace=gakushu-sochi",
+    "compile": "npm run compile --workspace=@gakushu-sochi/domain && npm run compile --workspace=@gakushu-sochi/api && npm run compile --workspace=gakushu-sochi && npm run check:types --workspace=@gakushu-sochi/domain",
     "gen:concepts": "npm run gen:concepts --workspace=@gakushu-sochi/domain",
     "check:concepts": "npm run check:concepts --workspace=@gakushu-sochi/domain",
     "check:worker-types": "npm run check:worker-types --workspace=@gakushu-sochi/api",
     "test": "npm run compile && npm run test:unit --workspace=@gakushu-sochi/domain && npm run test:unit --workspace=@gakushu-sochi/api && npm run test:unit --workspace=gakushu-sochi",
     "test:unit": "npm run compile && npm run test:unit --workspace=@gakushu-sochi/domain && npm run test:unit --workspace=@gakushu-sochi/api && npm run test:unit --workspace=gakushu-sochi",
-    "lint": "npm run lint --workspace=@gakushu-sochi/api && npm run lint --workspace=gakushu-sochi",
+    "lint": "npm run lint --workspace=@gakushu-sochi/domain && npm run lint --workspace=@gakushu-sochi/api && npm run lint --workspace=gakushu-sochi",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
