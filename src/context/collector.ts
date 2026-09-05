@@ -22,6 +22,9 @@ const SURROUNDING_LINE_COUNT = 10;
  * タイムアウトを置かないと、質問のたびに言語サーバーの起動待ちで固まる。
  * 「拡張が入っていても起動前は結果が返らない」のは Lv2 として扱うべき状態なので、
  * タイムアウトは異常ではなく想定内の分岐として扱う。
+ *
+ * これは1回の呼び出しではなく定義収集全体の期限である。候補ごとに計ると
+ * 候補数だけ待ち時間が積み上がり、防ごうとしている「起動待ちで固まる」状態そのものになる。
  */
 const DEFINITION_TIMEOUT_MS = 300;
 
@@ -127,12 +130,16 @@ async function collectDefinitions(
   const definitions: ExternalDefinition[] = [];
   const seen = new Set<string>();
 
+  // 収集全体で1つの期限を共有する。候補ごとにタイムアウトを計ると、
+  // 言語サーバー起動前は候補数 × タイムアウトだけ待つことになる。
+  const deadline = Date.now() + DEFINITION_TIMEOUT_MS;
+
   for (const position of positions) {
-    if (definitions.length >= MAX_DEFINITIONS) {
+    if (definitions.length >= MAX_DEFINITIONS || Date.now() >= deadline) {
       break;
     }
 
-    const locations = await executeDefinitionProvider(document.uri, position);
+    const locations = await executeDefinitionProvider(document.uri, position, deadline);
 
     for (const location of locations) {
       // 同一ファイル内の定義は surroundingCode 側で拾える可能性があり、
@@ -174,7 +181,7 @@ async function collectDefinitions(
  */
 async function readDefinition(
   location: vscode.Location,
-  symbol: string,
+  symbol: string | undefined,
 ): Promise<ExternalDefinition | undefined> {
   try {
     const target = await vscode.workspace.openTextDocument(location.uri);
@@ -195,7 +202,7 @@ async function readDefinition(
 }
 
 /**
- * 定義取得を時間制限つきで呼ぶ。
+ * 定義取得を、収集全体で共有する期限つきで呼ぶ。
  *
  * 言語サーバーの起動前は応答が返らないため、待ち続けない。
  * タイムアウトも失敗も空配列にまとめる。呼び出し側にとっては
@@ -204,6 +211,7 @@ async function readDefinition(
 async function executeDefinitionProvider(
   uri: vscode.Uri,
   position: vscode.Position,
+  deadline: number,
 ): Promise<vscode.Location[]> {
   const request = vscode.commands.executeCommand<(vscode.Location | vscode.LocationLink)[]>(
     "vscode.executeDefinitionProvider",
@@ -211,8 +219,10 @@ async function executeDefinitionProvider(
     position,
   );
 
+  // 残り時間で打ち切る。個別に DEFINITION_TIMEOUT_MS を計り直さない。
+  const remaining = Math.max(0, deadline - Date.now());
   const timeout = new Promise<undefined>((resolve) =>
-    setTimeout(() => resolve(undefined), DEFINITION_TIMEOUT_MS),
+    setTimeout(() => resolve(undefined), remaining),
   );
 
   try {
@@ -255,8 +265,8 @@ function findIdentifierPositions(
     for (let match = identifier.exec(text); match; match = identifier.exec(text)) {
       positions.push(new vscode.Position(line, match.index));
 
-      // 1行から何十個も候補を出しても上限で切られるだけなので、
-      // 問い合わせ回数を抑えるために行あたりの候補数を制限する。
+      // 候補を出しすぎても、実際に問い合わせるのは期限が尽きるまでの分だけで、
+      // 残りは捨てられる。位置の列挙自体に時間をかけないよう全体で打ち切る。
       if (positions.length >= MAX_DEFINITIONS * 4) {
         return positions;
       }
