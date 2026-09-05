@@ -1,12 +1,13 @@
 import * as vscode from "vscode";
-import { MockProvider } from "./ai/mock";
 import type { AIProvider } from "./ai/provider";
-import { describePendingContext } from "./chat/context-summary";
+import { VSCodeLMProvider } from "./ai/vscodeLm";
+import { CONSUMED_CONTEXT_MESSAGE, describePendingContext } from "./chat/context-summary";
 import { openCodeCompanionChat } from "./chat/open";
 import { PendingChatContext } from "./chat/pending-context";
 import { createChatAIRequest } from "./chat/request";
 import { readClipboard, readTerminalSelection } from "./context/clipboard";
 import { collectFromEditor, collectFromText } from "./context/collector";
+import type { CodeContext } from "./types/context";
 import { confirmSend } from "./ui/confirm";
 
 /**
@@ -32,17 +33,45 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(channel);
   channel.appendLine("Code Companion がアクティブになりました。");
   const pendingChatContext = new PendingChatContext();
-  // 実AI接続 (#11) までは、UIとAI層の接続を確認できる既定実装を使う。
-  const provider: AIProvider = new MockProvider();
+  // ユーザー自身の Copilot 契約を使って回答を生成する。
+  const provider: AIProvider = new VSCodeLMProvider();
+
+  /** 文脈を保持して、最初の質問を入力済みの Code Companion Chat を開く。 */
+  async function openChatForContext(codeContext: CodeContext): Promise<void> {
+    const contextId = pendingChatContext.set(codeContext);
+    logContext(codeContext.source, codeContext);
+
+    try {
+      await openCodeCompanionChat(contextId, vscode.commands.executeCommand);
+    } catch (error) {
+      // Chat が開かなければ Participant は呼ばれず、保持した文脈は永久に取り出されない。
+      // 捨てるのは確実だが、黙って捨てるとユーザーは押した操作が無反応にしか見えない。
+      // 破棄・ログ・通知の3つを揃える。
+      pendingChatContext.discard(contextId);
+      channel.appendLine(`Chat を開けませんでした: ${String(error)}`);
+      vscode.window.showErrorMessage(
+        "Code Companion Chat を開けませんでした。GitHub Copilot Chat が有効か確認してください。",
+      );
+    }
+  }
+
   const chatParticipant = vscode.chat.createChatParticipant(
     "codeCompanion.chat",
     async (request, _chatContext, response) => {
       const contextMatch = request.prompt.match(/^\[context:([^\]]+)\]\s*/);
-      const codeContext = contextMatch ? pendingChatContext.take(contextMatch[1]) : undefined;
       const question = contextMatch ? request.prompt.slice(contextMatch[0].length) : request.prompt;
 
+      // マーカーが無い場合と、マーカーはあるが消費済みの場合を混ぜない。
+      // 後者はユーザーの質問が捨てられる状況であり、復帰手段まで伝える必要がある。
+      if (!contextMatch) {
+        response.markdown(describePendingContext(undefined));
+        return;
+      }
+
+      const codeContext = pendingChatContext.take(contextMatch[1]);
+
       if (!codeContext) {
-        response.markdown(describePendingContext(codeContext));
+        response.markdown(CONSUMED_CONTEXT_MESSAGE);
         return;
       }
 
@@ -77,9 +106,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
     const codeContext = await collectFromEditor(editor);
 
-    const contextId = pendingChatContext.set(codeContext);
-    logContext("editor", codeContext);
-    await openCodeCompanionChat(contextId, vscode.commands.executeCommand);
+    await openChatForContext(codeContext);
   });
 
   const askTerminalSelection = vscode.commands.registerCommand(
@@ -88,7 +115,13 @@ export function activate(context: vscode.ExtensionContext): void {
       const result = await readTerminalSelection();
 
       if (!result.ok) {
-        vscode.window.showInformationMessage("ターミナルでテキストを選択してください");
+        // reason ごとに案内を変える。ClipboardSelection が理由を区別して返すのは
+        // 呼び出し側で出し分けるためであり、まとめると次の操作が分からなくなる。
+        vscode.window.showInformationMessage(
+          result.reason === "no-selection"
+            ? "ターミナルでテキストを選択してください"
+            : "選択されたテキストが空です。内容のある範囲を選択してください。",
+        );
         return;
       }
 
@@ -98,7 +131,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
       // ターミナル経由は内容しか運ばれてこないため Lv1 になる。
       // source はこのコマンドから呼ばれたという事実で確定させる。推測はしない。
-      logContext("terminal", collectFromText(result.text, "terminal"));
+      await openChatForContext(collectFromText(result.text, "terminal"));
     },
   );
 
@@ -109,8 +142,13 @@ export function activate(context: vscode.ExtensionContext): void {
     const result = await readClipboard();
 
     if (!result.ok) {
+      // readClipboard は現状 "empty" しか返さないが、それに寄りかからない。
+      // 種別が増えたときに「クリップボードが空です」と誤った案内を出し続けるより、
+      // ここで分岐しておいて理由をそのまま伝えるほうが崩れ方が小さい。
       vscode.window.showInformationMessage(
-        "クリップボードが空です。送りたい内容をコピーしてから実行してください。",
+        result.reason === "empty"
+          ? "クリップボードが空です。送りたい内容をコピーしてから実行してください。"
+          : `クリップボードから取得できませんでした（${result.reason}）。`,
       );
       return;
     }
@@ -121,7 +159,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
     // クリップボードは内容しか運ばず出所の情報を持たない。
     // このコマンドから呼ばれたという事実だけが source の根拠になる。
-    logContext("clipboard", collectFromText(result.text, "clipboard"));
+    await openChatForContext(collectFromText(result.text, "clipboard"));
   });
 
   context.subscriptions.push(askSelection, askTerminalSelection, askClipboard);
