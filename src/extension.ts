@@ -1,12 +1,13 @@
 import * as vscode from "vscode";
-import { MockProvider } from "./ai/mock";
 import type { AIProvider } from "./ai/provider";
+import { VSCodeLMProvider } from "./ai/vscodeLm";
 import { describePendingContext } from "./chat/context-summary";
 import { openCodeCompanionChat } from "./chat/open";
 import { PendingChatContext } from "./chat/pending-context";
 import { createChatAIRequest } from "./chat/request";
 import { readClipboard, readTerminalSelection } from "./context/clipboard";
 import { collectFromEditor, collectFromText } from "./context/collector";
+import type { CodeContext } from "./types/context";
 import { confirmSend } from "./ui/confirm";
 
 /**
@@ -32,8 +33,16 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(channel);
   channel.appendLine("Code Companion がアクティブになりました。");
   const pendingChatContext = new PendingChatContext();
-  // 実AI接続 (#11) までは、UIとAI層の接続を確認できる既定実装を使う。
-  const provider: AIProvider = new MockProvider();
+  // ユーザー自身の Copilot 契約を使って回答を生成する。
+  const provider: AIProvider = new VSCodeLMProvider();
+
+  /** 文脈を保持して、最初の質問を入力済みの Code Companion Chat を開く。 */
+  async function openChatForContext(codeContext: CodeContext): Promise<void> {
+    const contextId = pendingChatContext.set(codeContext);
+    logContext(codeContext.source, codeContext);
+    await openCodeCompanionChat(contextId, vscode.commands.executeCommand);
+  }
+
   const chatParticipant = vscode.chat.createChatParticipant(
     "codeCompanion.chat",
     async (request, _chatContext, response) => {
@@ -77,9 +86,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
     const codeContext = await collectFromEditor(editor);
 
-    const contextId = pendingChatContext.set(codeContext);
-    logContext("editor", codeContext);
-    await openCodeCompanionChat(contextId, vscode.commands.executeCommand);
+    await openChatForContext(codeContext);
   });
 
   const askTerminalSelection = vscode.commands.registerCommand(
@@ -98,7 +105,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
       // ターミナル経由は内容しか運ばれてこないため Lv1 になる。
       // source はこのコマンドから呼ばれたという事実で確定させる。推測はしない。
-      logContext("terminal", collectFromText(result.text, "terminal"));
+      await openChatForContext(collectFromText(result.text, "terminal"));
     },
   );
 
@@ -121,7 +128,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
     // クリップボードは内容しか運ばず出所の情報を持たない。
     // このコマンドから呼ばれたという事実だけが source の根拠になる。
-    logContext("clipboard", collectFromText(result.text, "clipboard"));
+    await openChatForContext(collectFromText(result.text, "clipboard"));
   });
 
   context.subscriptions.push(askSelection, askTerminalSelection, askClipboard);
