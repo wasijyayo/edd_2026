@@ -2,8 +2,6 @@ import * as vscode from "vscode";
 import { readClipboard, readTerminalSelection } from "./context/clipboard";
 import { collectFromEditor, collectFromText } from "./context/collector";
 import { confirmSend } from "./ui/confirm";
-import { VSCodeLMProvider } from "./ai/vscodeLm";
-import type { AIRequest } from "./types/ai";
 
 /**
  * 開発中の確認用チャンネル。
@@ -49,40 +47,6 @@ export function activate(context: vscode.ExtensionContext): void {
     logContext("editor", context);
   });
 
-  // AI/02 (#11) の実機確認用。使い捨て。
-  // VSCodeLMProvider を経由して実際に応答が返るか、Copilot未契約・同意拒否時に
-  // クラッシュしないかを確認する。確認が終わったらこのコマンドごと削除する。
-  const debugVscodeLmProvider = vscode.commands.registerCommand(
-    "codeCompanion.debugVscodeLmProvider",
-    async () => {
-      const editor = vscode.window.activeTextEditor;
-
-      if (!editor || editor.selection.isEmpty) {
-        vscode.window.showInformationMessage("コードを選択してください");
-        return;
-      }
-
-      const context = await collectFromEditor(editor);
-      const request: AIRequest = { mode: "explain", context };
-
-      channel.appendLine("--- VSCodeLMProvider probe (issue #11, throwaway) ---");
-
-      const provider = new VSCodeLMProvider();
-      const response = await provider.ask(request);
-
-      if (response.ok) {
-        channel.appendLine(`成功。model=${response.answer.model}`);
-        channel.appendLine(response.answer.text);
-      } else {
-        channel.appendLine(
-          `失敗。reason=${response.error.reason} detail=${response.error.detail ?? ""}`,
-        );
-      }
-
-      channel.show(true);
-    },
-  );
-
   const askTerminalSelection = vscode.commands.registerCommand(
     "codeCompanion.askTerminalSelection",
     async () => {
@@ -125,12 +89,7 @@ export function activate(context: vscode.ExtensionContext): void {
     logContext("clipboard", collectFromText(result.text, "clipboard"));
   });
 
-  context.subscriptions.push(
-    askSelection,
-    askTerminalSelection,
-    askClipboard,
-    debugVscodeLmProvider,
-  );
+  context.subscriptions.push(askSelection, askTerminalSelection, askClipboard);
 }
 
 export function deactivate(): void {}
