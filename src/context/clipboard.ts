@@ -1,11 +1,12 @@
 import * as vscode from "vscode";
 
 /**
- * ターミナルの選択範囲を取得した結果。
+ * クリップボード経由でテキストを取得した結果。
  *
  * 取得できなかった場合、理由を区別して返す。呼び出し側で案内を出し分けるため。
  */
-export type ClipboardSelection = { ok: true; text: string } | { ok: false; reason: "no-selection" };
+export type ClipboardSelection =
+  { ok: true; text: string } | { ok: false; reason: "no-selection" | "empty" };
 
 /**
  * クリップボード経由でターミナルの選択範囲を取得する。
@@ -36,4 +37,29 @@ export async function readTerminalSelection(): Promise<ClipboardSelection> {
     // 途中で例外が起きてもユーザーのクリップボードは必ず戻す。
     await vscode.env.clipboard.writeText(original);
   }
+}
+
+/**
+ * クリップボードの内容をそのまま取得する。
+ *
+ * ブラウザなどVS Codeの外にあるアプリに対しては、`readTerminalSelection` のように
+ * こちらからコピーを実行させることができない。そのため
+ * 「ユーザーが自分でコピーを済ませている」前提で読むだけにする。
+ *
+ * 目印（sentinel）による判定は使えない。書き込んだ目印がそのまま残っていても、
+ * 「ユーザーが何もコピーしていない」のか「今コピーした内容がたまたま無いだけ」なのかを
+ * 区別できないためで、そもそもコピーを起こすのが拡張ではないので判定の意味がない。
+ *
+ * 結果として「今コピーされた内容か、何時間も前の内容か」は判別できない。
+ * これは技術的な限界なので、送信前の確認（`confirmSend`）で必ず補うこと。
+ */
+export async function readClipboard(): Promise<ClipboardSelection> {
+  const text = await vscode.env.clipboard.readText();
+
+  // 読むだけなので、ユーザーのクリップボードは書き換えない。
+  if (text.trim() === "") {
+    return { ok: false, reason: "empty" };
+  }
+
+  return { ok: true, text };
 }
