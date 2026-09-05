@@ -3,7 +3,29 @@ import { readClipboard, readTerminalSelection } from "./context/clipboard";
 import { collectFromEditor, collectFromText } from "./context/collector";
 import { confirmSend } from "./ui/confirm";
 
+/**
+ * 開発中の確認用チャンネル。
+ *
+ * console.log は「デバッグ コンソール」に出るため、拡張機能開発ホスト側からは見えず、
+ * 開発中に CodeContext の中身を確認しづらい。出力チャンネルなら
+ * 拡張機能開発ホストの「出力」からそのまま読める。
+ *
+ * 表示/01 (#14) が回答表示UIを実装したら、その責務はそちらへ移る。
+ */
+let channel: vscode.OutputChannel;
+
+/** CodeContext を出力チャンネルへ書き出す。 */
+function logContext(label: string, value: unknown): void {
+  channel.appendLine(`--- ${label} ---`);
+  channel.appendLine(JSON.stringify(value, null, 2));
+  channel.show(true);
+}
+
 export function activate(context: vscode.ExtensionContext): void {
+  channel = vscode.window.createOutputChannel("Code Companion");
+  context.subscriptions.push(channel);
+  channel.appendLine("Code Companion がアクティブになりました。");
+
   const askSelection = vscode.commands.registerCommand("codeCompanion.askSelection", async () => {
     const editor = vscode.window.activeTextEditor;
 
@@ -22,7 +44,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
     const context = await collectFromEditor(editor);
 
-    console.log(context);
+    logContext("editor", context);
   });
 
   const askTerminalSelection = vscode.commands.registerCommand(
@@ -41,7 +63,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
       // ターミナル経由は内容しか運ばれてこないため Lv1 になる。
       // source はこのコマンドから呼ばれたという事実で確定させる。推測はしない。
-      console.log(collectFromText(result.text, "terminal"));
+      logContext("terminal", collectFromText(result.text, "terminal"));
     },
   );
 
@@ -64,7 +86,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
     // クリップボードは内容しか運ばず出所の情報を持たない。
     // このコマンドから呼ばれたという事実だけが source の根拠になる。
-    console.log(collectFromText(result.text, "clipboard"));
+    logContext("clipboard", collectFromText(result.text, "clipboard"));
   });
 
   context.subscriptions.push(askSelection, askTerminalSelection, askClipboard);
