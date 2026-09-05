@@ -11,8 +11,15 @@
  */
 
 import * as vscode from "vscode";
-import type { AIError, AIErrorReason, AIRequest, AIResponse } from "./types";
 import type { AIProvider } from "./provider";
+import {
+  CONCEPTS,
+  type AIError,
+  type AIErrorReason,
+  type AIRequest,
+  type AIResponse,
+  type ConceptId,
+} from "@gakushu-sochi/domain";
 
 /**
  * 既定で使う family。
@@ -23,8 +30,40 @@ import type { AIProvider } from "./provider";
  */
 const DEFAULT_FAMILY = "gpt-4o-mini";
 
+/** 既知の ConceptId 一覧。AIが存在しないIDを捏造した場合に弾くために使う。 */
+const KNOWN_CONCEPT_IDS = new Set(CONCEPTS.map((concept) => concept.id));
+
+/**
+ * プロンプトに含める過去の会話ターン数の上限。
+ *
+ * `AIRequest.history` は会話が続く限り増え続けるため、上限を設けないと
+ * 毎回のリクエストが際限なく重くなり、いずれモデルのコンテキスト長を
+ * 超えてしまう。理解が解消されたかの判断には直近のやり取りで十分なため、
+ * 直近 {@link MAX_HISTORY_TURNS} 件だけを残す（古いものは切り捨てる）。
+ */
+const MAX_HISTORY_TURNS = 10;
+
+/**
+ * 応答本文の末尾に付けさせるメタ情報の開始マーカー。
+ *
+ * ユーザーへ表示する前にここで切り離すため、Markdownとして自然に読める記号は避け、
+ * 通常の説明文には出てこない専用の文字列にする。
+ */
+const META_MARKER = "<<code-companion-meta>>";
+
 /** AIRequest を LanguageModelChatMessage の配列へ変換する。 */
 function toMessages(request: AIRequest): vscode.LanguageModelChatMessage[] {
+  // 直近 MAX_HISTORY_TURNS 件だけを使う。長い会話をそのまま送り続けると
+  // リクエストが際限なく重くなり、モデルのコンテキスト長を超えかねない。
+  const history = (request.history ?? []).slice(-MAX_HISTORY_TURNS);
+  const hasHistory = history.length > 0;
+
+  const historyMessages = history.map((turn) =>
+    turn.role === "user"
+      ? vscode.LanguageModelChatMessage.User(turn.text)
+      : vscode.LanguageModelChatMessage.Assistant(turn.text),
+  );
+
   const lines: string[] = [
     request.mode === "hint"
       ? "次に試す一手だけを示してください。答えそのものは書かないでください。"
@@ -46,7 +85,82 @@ function toMessages(request: AIRequest): vscode.LanguageModelChatMessage[] {
     lines.push("", "--- 質問 ---", request.question);
   }
 
-  return [vscode.LanguageModelChatMessage.User(lines.join("\n"))];
+  // 本文の下に、ユーザーには見せないメタ情報をJSONで出させる。
+  // 学習イベントの記録（MVP/02 #23）が、どのConceptの話か・理解が解消されたかを
+  // 判断する材料に使う。会話に表示する内容とは別物なので、通常の説明文の後に
+  // マーカー付きで書かせて、受け取り側（parseAnswer）で切り離す。
+  lines.push(
+    "",
+    "--- 出力形式 ---",
+    `本文を書き終えたら、必ず最後に ${META_MARKER} という行を書き、続けてJSONを1つだけ書いてください。`,
+    '形式: {"conceptIds": ["関係する概念のID。分からなければ空配列"], "resolution": "resolved か unclear"}',
+    "conceptIds は今回の話題に一致する既知の概念のIDのみを入れてください。存在しないIDを作らないでください。",
+  );
+
+  if (hasHistory) {
+    lines.push(
+      "resolution には、これまでの会話（履歴）を踏まえて、直前までの説明で扱っていた疑問が" +
+        '今回のユーザーの発言で解消されたと判断できるなら "resolved"、まだそう判断できないなら ' +
+        '"unclear" を入れてください。',
+    );
+  } else {
+    lines.push("これが最初のやり取りで判断材料が無いため、resolution キーは省略してください。");
+  }
+
+  return [...historyMessages, vscode.LanguageModelChatMessage.User(lines.join("\n"))];
+}
+
+/** parseAnswer() の戻り値。 */
+interface ParsedAnswer {
+  /** ユーザーへ表示する本文。メタ情報は含まない。 */
+  text: string;
+  conceptIds: ConceptId[];
+  resolution?: "resolved" | "unclear";
+}
+
+/**
+ * モデルの応答から、表示用の本文と末尾のメタ情報(JSON)を分離する。
+ *
+ * モデルが指示に従わない・JSONが壊れている場合は、本文だけをそのまま使い
+ * conceptIds は空配列、resolution は省略にする。出力形式は保証されないため、
+ * ここでの失敗が質問フロー自体を止めてはならない。
+ */
+function parseAnswer(raw: string): ParsedAnswer {
+  const markerIndex = raw.indexOf(META_MARKER);
+
+  if (markerIndex === -1) {
+    return { text: raw.trim(), conceptIds: [] };
+  }
+
+  const text = raw.slice(0, markerIndex).trim();
+  const jsonMatch = raw.slice(markerIndex + META_MARKER.length).match(/\{[\s\S]*\}/);
+
+  if (!jsonMatch) {
+    return { text, conceptIds: [] };
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(jsonMatch[0]);
+
+    if (typeof parsed !== "object" || parsed === null) {
+      return { text, conceptIds: [] };
+    }
+
+    const rawConceptIds = (parsed as { conceptIds?: unknown }).conceptIds;
+    const conceptIds = Array.isArray(rawConceptIds)
+      ? rawConceptIds.filter(
+          (id): id is ConceptId => typeof id === "string" && KNOWN_CONCEPT_IDS.has(id),
+        )
+      : [];
+
+    const rawResolution = (parsed as { resolution?: unknown }).resolution;
+    const resolution =
+      rawResolution === "resolved" || rawResolution === "unclear" ? rawResolution : undefined;
+
+    return { text, conceptIds, resolution };
+  } catch {
+    return { text, conceptIds: [] };
+  }
 }
 
 /**
@@ -107,19 +221,21 @@ export class VSCodeLMProvider implements AIProvider {
         justification: "Gakushu Sochi がコードの説明・ヒントを生成するために使用します。",
       });
 
-      let text = "";
+      let raw = "";
       for await (const chunk of response.text) {
-        text += chunk;
+        raw += chunk;
       }
+
+      const parsed = parseAnswer(raw);
 
       return {
         ok: true,
         answer: {
-          text,
-          // Concept の抽出はプロンプト側（AI/03 #12）の仕事。ここでは行わない。
-          conceptIds: [],
+          text: parsed.text,
+          conceptIds: parsed.conceptIds,
           mode: request.mode,
           model: model.id,
+          ...(parsed.resolution ? { resolution: parsed.resolution } : {}),
         },
       };
     } catch (error) {

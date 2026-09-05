@@ -24,3 +24,23 @@ test("Chatの質問とLSP文脈をVS Code非依存のAIRequestへ変換する", 
     context,
   });
 });
+
+test("会話履歴を渡すとAIRequestのhistoryへそのまま載る", () => {
+  const context = {
+    code: "value",
+    source: "editor" as const,
+    contextLevel: 2 as const,
+    surroundingCode: "",
+  };
+  const history = [
+    { role: "user" as const, text: "これは何ですか？" },
+    { role: "assistant" as const, text: "ポインタレシーバです。" },
+  ];
+
+  expect(createChatAIRequest(context, "分かりました", history)).toEqual({
+    mode: "explain",
+    question: "分かりました",
+    context,
+    history,
+  });
+});
