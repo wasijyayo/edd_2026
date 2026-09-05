@@ -280,6 +280,13 @@ function toLocation(value: vscode.Location | vscode.LocationLink): vscode.Locati
  *
  * 選択範囲の全単語で定義を引くと、言語サーバーへの問い合わせが選択行数に比例して増える。
  * 定義の取得数には上限があるので、先頭から順に見て必要な数だけ引ければ十分。
+ *
+ * 既知の弱点: ファイル全体のような広い範囲を選ぶと、先頭にある import 文の
+ * 識別子だけで {@link MAX_DEFINITIONS} を使い切る。実機では Go の main.go 全選択で
+ * `context` / `log` / `slog` のパッケージ宣言行が3件並び、本体の呼び出し先である
+ * app.SetupLogger には到達しなかった。contextLevel は 3 になるが中身は
+ * 回答の役に立たない。想定している「数行を選んで質問する」使い方では起きない。
+ * 直すなら、パッケージ宣言だけの定義を捨てるか、候補を選択範囲全体へ分散させる。
  */
 function findIdentifierPositions(
   document: vscode.TextDocument,
