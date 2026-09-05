@@ -83,24 +83,24 @@ export class VSCodeLMProvider implements AIProvider {
   readonly id = "vscode-lm";
 
   async ask(request: AIRequest): Promise<AIResponse> {
-    const models = await vscode.lm.selectChatModels();
-
-    if (models.length === 0) {
-      return {
-        ok: false,
-        error: {
-          reason: "model-unavailable",
-          detail:
-            "selectChatModels() が空配列を返した。Copilot未契約・未サインインの可能性がある。",
-        },
-      };
-    }
-
-    // 用途外のモデルを避けるため family を指定して選ぶ。無ければ先頭にフォールバックする
-    // （フォールバック時も応答が空になりうることは docs/lm-api.md に記録済み）。
-    const model = models.find((m) => m.family === DEFAULT_FAMILY) ?? models[0];
-
     try {
+      const models = await vscode.lm.selectChatModels();
+
+      if (models.length === 0) {
+        return {
+          ok: false,
+          error: {
+            reason: "model-unavailable",
+            detail:
+              "selectChatModels() が空配列を返した。Copilot未契約・未サインインの可能性がある。",
+          },
+        };
+      }
+
+      // 用途外のモデルを避けるため family を指定して選ぶ。無ければ先頭にフォールバックする
+      // （フォールバック時も応答が空になりうることは docs/lm-api.md に記録済み）。
+      const model = models.find((m) => m.family === DEFAULT_FAMILY) ?? models[0];
+
       // sendRequest は初回呼び出し時にユーザーへ同意ダイアログを表示する。
       // ユーザー操作（コマンド実行）への応答として呼ぶ必要があり、ここはその文脈で呼ばれる。
       const response = await model.sendRequest(toMessages(request), {
