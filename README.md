@@ -24,13 +24,15 @@
 │  ├─ extension.ts              # コマンド登録と処理フローの入口
 │  ├─ types/
 │  │  ├─ profile.ts             # Learner Profile / Concept / 学習イベントの型
+│  │  ├─ context.ts             # CodeContext（AIへ渡すコード文脈）の型
+│  │  ├─ ai.ts                  # AIRequest / AIResponse などAI層のデータ契約
 │  │  ├─ concepts.md            # Concept一覧の正典（人が編集する表）
 │  │  └─ concepts.generated.ts  # concepts.mdから自動生成（編集しない）
 │  ├─ context/
 │  │  ├─ collector.ts           # 選択範囲・周辺コード・言語情報をCodeContextにする
 │  │  └─ diagnostics.ts         # カーソル位置のLSP Diagnosticsを取得する
 │  ├─ ai/
-│  │  ├─ provider.ts            # AIProvider interfaceとTutorRequest / TutorResponse
+│  │  ├─ provider.ts            # AIProvider interface
 │  │  ├─ mock.ts                # 実AIが使えない場合の固定応答
 │  │  ├─ vscodeLm.ts            # VS Code Language Model APIとの接続
 │  │  └─ prompt.ts              # Hint / Explain用のプロンプト組み立て
@@ -53,12 +55,14 @@
 
 - `types/` は他モジュールに依存しないデータ契約だけを置く。VS Code APIをimportしない。
 - `context/` はVS Code / LSPの生データを、AIが扱える構造に変換する。
-- `ai/` はVS CodeのUIを直接扱わず、`TutorRequest`を受けて`TutorResponse`を返す。
+- `ai/` はVS CodeのUIを直接扱わず、`AIRequest`を受けて`AIResponse`を返す。
 - `learning/` は回答の前後に生じる学習イベントだけをローカル保存する。
 - `ui/` は入力と表示を担当し、AIの判断ロジックを持たない。
 - `extension.ts` は各モジュールを接続するだけにする。
 
-`TutorRequest` / `TutorResponse` は `src/ai/provider.ts` に集約し、AI担当とVS Code担当の共有契約とする。
+`AIProvider` interfaceは `src/ai/provider.ts` に置き、`AIRequest` / `AIResponse` は `src/types/ai.ts` に集約して、AI担当とVS Code担当の共有契約とする。`ai/` から `types/` への依存は許すが、逆向きの依存は作らない。
+
+`AIProvider.ask` は失敗しても例外を投げず、`AIResponse` の値として理由を返す。呼び出し側が `AIErrorReason` で案内を出し分けられるようにするため。ストリーミングは `askStream` を任意メソッドとして空けてあり、実装するかどうかは 調査/01 (#4) の結果で決める。
 
 Learner Profile / Concept / 学習イベントの型は `src/types/profile.ts` に集約する。命名規則・Concept追加手順・習熟度の更新ルール・スキーマのマイグレーション方針は `docs/concepts.md` が正典とする。
 
