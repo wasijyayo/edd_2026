@@ -18,7 +18,12 @@ export default [
     // AI層はエディタから独立させる。CodeContext というデータのみを受け取り、
     // vscode に依存させない。将来 VS Code 以外へ展開する余地を機械的に守るためのルール。
     // 基盤/04 (#3) を参照。
+    //
+    // vscodeLm.ts は例外。vscode.lm を呼ぶこと自体が AI/02 (#11) の実装対象であり、
+    // AIProvider interface の実装として他から差し替え可能であればよい
+    // （呼び出し側の provider.ts / mock.ts が vscode非依存であることが本来の目的）。
     files: ["src/ai/**/*.ts"],
+    ignores: ["src/ai/vscodeLm.ts"],
     rules: {
       "@typescript-eslint/no-restricted-imports": [
         "error",
