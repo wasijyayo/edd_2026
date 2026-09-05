@@ -38,9 +38,9 @@ Naniのように、必要なときだけ素早く呼び出せるUXを目指す�
 
 VS Codeのエラー情報を取得し、
 
-* なぜエラーなのか
-* どこを見るべきか
-* 次に何を試すべきか
+- なぜエラーなのか
+- どこを見るべきか
+- 次に何を試すべきか
 
 を解説する。
 
@@ -79,10 +79,10 @@ Concurrency    未観測
 
 「何回AIを使ったか」ではなく、
 
-* 何を理解したか
-* 何が苦手か
-* 最近できるようになったこと
-* 次に何を学ぶとよいか
+- 何を理解したか
+- 何が苦手か
+- 最近できるようになったこと
+- 次に何を学ぶとよいか
 
 を可視化する。Conceptの体系にはroadmap.shのような外部ロードマップを参考にできるが、
 理解度を外部サービスの点数として扱うのではなく、本人の行動から得られた根拠とともに表示する。
@@ -102,19 +102,19 @@ Concurrency    未観測
 
 ### Tone
 
-* Standard
-* Friendly
-* Casual
-* Strict
-* Concise
+- Standard
+- Friendly
+- Casual
+- Strict
+- Concise
 
 ### Teaching Style
 
-* Answer First
-* Hint First
-* Socratic
-* Example Heavy
-* Deep Explanation
+- Answer First
+- Hint First
+- Socratic
+- Example Heavy
+- Deep Explanation
 
 ### Companion
 
@@ -144,10 +144,10 @@ Learning History
 
 特に、
 
-* 若手エンジニア
-* 新しい言語/FWを学んでいるエンジニア
-* 就活中・駆け出しエンジニア
-* 大学生・専門学生
+- 若手エンジニア
+- 新しい言語/FWを学んでいるエンジニア
+- 就活中・駆け出しエンジニア
+- 大学生・専門学生
 
 を想定する。
 
@@ -203,23 +203,23 @@ AI Agentや大規模なコード生成、教材・他エディタ・GitHubとの
 
 ### Free
 
-* コードへの質問
-* エラー解説
-* Hint Mode（Hint → 自力解決 → Answer）
-* 基本Personal Learning Map
-* 基本的な回答カスタマイズ
+- コードへの質問
+- エラー解説
+- Hint Mode（Hint → 自力解決 → Answer）
+- 基本Personal Learning Map
+- 基本的な回答カスタマイズ
 
 ### Pro
 
-* 長期学習履歴
-* 詳細Personal Learning Map
-* 過去のつまずきを考慮した回答
-* Weekly / Monthly Review
-* 学習ロードマップ
-* 復習・Personalized Challenge
-* Custom Companion
-* 詳細なTeaching Style設定
-* 複数端末同期
+- 長期学習履歴
+- 詳細Personal Learning Map
+- 過去のつまずきを考慮した回答
+- Weekly / Monthly Review
+- 学習ロードマップ
+- 復習・Personalized Challenge
+- Custom Companion
+- 詳細なTeaching Style設定
+- 複数端末同期
 
 ProではAI利用量そのものではなく、
 
