@@ -1,6 +1,5 @@
 import { expect, test } from "vitest";
-import { createEmptyProfile, type LearningEvent } from "@gakushu-sochi/domain";
-import { applyEvent } from "../learning/mastery";
+import { applyEvent, createEmptyProfile, type LearningEvent } from "@gakushu-sochi/domain";
 
 let nextId = 1;
 

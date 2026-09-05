@@ -8,12 +8,12 @@
 
 import * as vscode from "vscode";
 import {
+  applyEvent,
   createEmptyProfile,
   LEARNER_PROFILE_VERSION,
   type LearnerProfile,
   type LearningEvent,
 } from "@gakushu-sochi/domain";
-import { applyEvent } from "./mastery";
 
 /** globalState 上のキー。docs/concepts.md の「保存」を参照。 */
 const PROFILE_KEY = "codeCompanion.learnerProfile";
