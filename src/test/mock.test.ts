@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { expect, test } from "vitest";
 import { MockProvider } from "../ai/mock";
 
 test("MockProvider returns a hint response for hint requests", async () => {
@@ -15,13 +14,13 @@ test("MockProvider returns a hint response for hint requests", async () => {
     },
   });
 
-  assert.equal(response.ok, true);
+  expect(response.ok).toBe(true);
 
   if (!response.ok) {
-    assert.fail("MockProvider should return a successful response");
+    throw new Error("MockProvider should return a successful response");
   }
 
-  assert.equal(response.answer.mode, "hint");
-  assert.equal(response.answer.model, "mock");
-  assert.match(response.answer.text, /答えは書きません/);
+  expect(response.answer.mode).toBe("hint");
+  expect(response.answer.model).toBe("mock");
+  expect(response.answer.text).toMatch(/答えは書きません/);
 });
