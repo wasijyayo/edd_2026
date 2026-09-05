@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import * as vscode from "vscode";
 import type { AIProvider } from "./ai/provider";
 import { VSCodeLMProvider } from "./ai/vscodeLm";
@@ -7,7 +8,10 @@ import { PendingChatContext } from "./chat/pending-context";
 import { createChatAIRequest } from "./chat/request";
 import { readClipboard, readTerminalSelection } from "./context/clipboard";
 import { collectFromEditor, collectFromText } from "./context/collector";
+import { loadProfile, recordEvent } from "./learning/store";
+import type { ConversationTurn } from "./types/ai";
 import type { CodeContext } from "./types/context";
+import type { LearningEvent } from "./types/profile";
 import { confirmSend } from "./ui/confirm";
 
 /**
@@ -28,6 +32,37 @@ function logContext(label: string, value: unknown): void {
   channel.show(true);
 }
 
+/**
+ * Chat の履歴を、AI 層の共通契約（VS Code非依存）である ConversationTurn[] へ変換する。
+ *
+ * `ChatResponseTurn.response` にはボタン等も混在しうるが、現状このParticipantが
+ * 積むのは markdown のみなので Markdown 以外の部分は無視する。
+ */
+function toConversationTurns(
+  history: readonly (vscode.ChatRequestTurn | vscode.ChatResponseTurn)[],
+): ConversationTurn[] {
+  return history.map((turn) => {
+    if (turn instanceof vscode.ChatRequestTurn) {
+      const contextMatch = turn.prompt.match(/^\[context:([^\]]+)\]\s*/);
+      const text = contextMatch ? turn.prompt.slice(contextMatch[0].length) : turn.prompt;
+      return { role: "user", text };
+    }
+
+    const text = turn.response
+      .filter(
+        (part): part is vscode.ChatResponseMarkdownPart =>
+          part instanceof vscode.ChatResponseMarkdownPart,
+      )
+      .map((part) => part.value.value)
+      .join("");
+    return { role: "assistant", text };
+  });
+}
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
 export function activate(context: vscode.ExtensionContext): void {
   channel = vscode.window.createOutputChannel("Gakushu Sochi");
   context.subscriptions.push(channel);
@@ -36,7 +71,21 @@ export function activate(context: vscode.ExtensionContext): void {
   // ユーザー自身の Copilot 契約を使って回答を生成する。
   const provider: AIProvider = new VSCodeLMProvider();
 
+  // MVP/02 (#23): 学習フィードバックをローカル保存する。
+  // メモリ上に持ち、イベントのたびに globalState へ反映する
+  // （globalState自体をキャッシュとして毎回読み直さない）。
+  let profile = loadProfile(context);
+
+  /** 学習イベントを1件記録する。保存に失敗しても質問フローは止めない。 */
+  async function persistEvent(event: LearningEvent): Promise<void> {
+    profile = await recordEvent(context, profile, event, (error) => {
+      channel.appendLine(`LearnerProfile の保存に失敗しました: ${String(error)}`);
+    });
+    channel.appendLine(`--- LearningEvent ---\n${JSON.stringify(event, null, 2)}`);
+  }
+
   /** 文脈を保持して、最初の質問を入力済みの Gakushu Sochi Chat を開く。 */
+
   async function openChatForContext(codeContext: CodeContext): Promise<void> {
     const contextId = pendingChatContext.set(codeContext);
     logContext(codeContext.source, codeContext);
@@ -76,7 +125,8 @@ export function activate(context: vscode.ExtensionContext): void {
       }
 
       response.progress("Gakushu Sochi が考えています...");
-      const aiResponse = await provider.ask(createChatAIRequest(codeContext, question));
+      const history = toConversationTurns(_chatContext.history);
+      const aiResponse = await provider.ask(createChatAIRequest(codeContext, question, history));
 
       if (!aiResponse.ok) {
         response.markdown(`回答を生成できませんでした（${aiResponse.error.reason}）。`);
@@ -84,6 +134,34 @@ export function activate(context: vscode.ExtensionContext): void {
       }
 
       response.markdown(aiResponse.answer.text);
+
+      // MVP/02 (#23): 自己申告ではなく、行動と結果から習熟度を組み立てる。
+      // ここでは「質問に答えた」事実を記録する。ヒントか解説かで種別を分ける。
+      const sessionId = randomUUID();
+      await persistEvent({
+        id: randomUUID(),
+        occurredAt: nowIso(),
+        type: aiResponse.answer.mode === "hint" ? "hint_used" : "answer_viewed",
+        origin: "vscode",
+        conceptIds: aiResponse.answer.conceptIds,
+        language: codeContext.languageId,
+        sessionId,
+      });
+
+      // 過去の会話（history）を踏まえてAIが「理解が解消された」と判断した場合のみ、
+      // 自力解決の根拠を追加で記録する。履歴が無い最初のターンでは resolution は
+      // 付かないため、ここは2回目以降のやり取りでしか発生しない。
+      if (aiResponse.answer.resolution === "resolved" && aiResponse.answer.conceptIds.length > 0) {
+        await persistEvent({
+          id: randomUUID(),
+          occurredAt: nowIso(),
+          type: "solved_independently",
+          origin: "vscode",
+          conceptIds: aiResponse.answer.conceptIds,
+          language: codeContext.languageId,
+          sessionId,
+        });
+      }
     },
   );
   context.subscriptions.push(chatParticipant);

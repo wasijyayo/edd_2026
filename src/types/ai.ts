@@ -49,6 +49,17 @@ export interface ProfileSummary {
   recurringConceptIds?: ConceptId[];
 }
 
+/**
+ * 会話の1ターン。
+ *
+ * VS Code の `ChatRequestTurn`/`ChatResponseTurn` を AI 層へ持ち込まないための
+ * 最小の写し。呼び出し側（extension.ts）が変換してから AIRequest に載せる。
+ */
+export interface ConversationTurn {
+  role: "user" | "assistant";
+  text: string;
+}
+
 /** AI への1回のリクエスト。 */
 export interface AIRequest {
   mode: AskMode;
@@ -68,6 +79,18 @@ export interface AIRequest {
   diagnostics?: string[];
   /** 学習者の習熟度要約。未取得・未観測の場合は省略される。 */
   profile?: ProfileSummary;
+  /**
+   * 同じ Chat セッション内の過去のやり取り。古い順。
+   *
+   * 初回の質問では省略される。MVP/02 (#23) が、直前までのやり取りに対して
+   * 理解が解消されたかを AI に判断させるために使う。
+   *
+   * 件数の上限はここでは決めない。会話が続く限り増え続けるため、そのまま
+   * 送るとモデルのコンテキスト長を超えうる（{@link AIErrorReason}の
+   * `context-too-long`）。何件を実際に使うかは Provider 実装側の判断とする
+   * （vscodeLm.ts 参照）。モデルによって適切な件数が変わりうるため。
+   */
+  history?: ConversationTurn[];
 }
 
 // ---------------------------------------------------------------------------
@@ -120,6 +143,15 @@ export interface AIAnswer {
   mode: AskMode;
   /** 応答したモデルの識別子。ログと検証に使う。 */
   model?: string;
+  /**
+   * 過去の会話（{@link AIRequest.history}）を踏まえた、直前までのやり取りに
+   * 対する理解の見立て。
+   *
+   * `history` が空（初回の質問）の場合は判断材料が無いため省略される。
+   * AIの見立てであり断定ではない点に注意。学習イベントの記録（MVP/02 #23）は
+   * `"resolved"` の場合のみ `solved_independently` を追記する根拠に使う。
+   */
+  resolution?: "resolved" | "unclear";
 }
 
 /**
