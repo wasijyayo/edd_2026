@@ -3,6 +3,10 @@
     "module": "Node16",
     "target": "ES2022",
     "lib": ["ES2022"],
+    // 拡張は Node.js 上で動く。console / setTimeout はここから来る。
+    // dom は入れない。fetch や localStorage など実行時に存在しない API が
+    // 補完に出て、動かないコードが書けてしまうため。
+    "types": ["node", "vscode"],
     "outDir": "out",
     "rootDir": "src",
     "sourceMap": true,
