@@ -11,5 +11,8 @@
   "search.exclude": {
     "out": true
   },
-  "typescript.tsc.autoDetect": "off"
+  "typescript.tsc.autoDetect": "off",
+  // エディタも npm run compile と同じ TypeScript を使う。
+  // VS Code 内蔵版との差でエディタにだけエラーが出るのを防ぐ。
+  "typescript.tsdk": "node_modules/typescript/lib"
 }
