@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import type { AIProvider } from "./ai/provider";
 import { VSCodeLMProvider } from "./ai/vscodeLm";
-import { describePendingContext } from "./chat/context-summary";
+import { CONSUMED_CONTEXT_MESSAGE, describePendingContext } from "./chat/context-summary";
 import { openCodeCompanionChat } from "./chat/open";
 import { PendingChatContext } from "./chat/pending-context";
 import { createChatAIRequest } from "./chat/request";
@@ -47,11 +47,19 @@ export function activate(context: vscode.ExtensionContext): void {
     "codeCompanion.chat",
     async (request, _chatContext, response) => {
       const contextMatch = request.prompt.match(/^\[context:([^\]]+)\]\s*/);
-      const codeContext = contextMatch ? pendingChatContext.take(contextMatch[1]) : undefined;
       const question = contextMatch ? request.prompt.slice(contextMatch[0].length) : request.prompt;
 
+      // マーカーが無い場合と、マーカーはあるが消費済みの場合を混ぜない。
+      // 後者はユーザーの質問が捨てられる状況であり、復帰手段まで伝える必要がある。
+      if (!contextMatch) {
+        response.markdown(describePendingContext(undefined));
+        return;
+      }
+
+      const codeContext = pendingChatContext.take(contextMatch[1]);
+
       if (!codeContext) {
-        response.markdown(describePendingContext(codeContext));
+        response.markdown(CONSUMED_CONTEXT_MESSAGE);
         return;
       }
 
@@ -95,7 +103,13 @@ export function activate(context: vscode.ExtensionContext): void {
       const result = await readTerminalSelection();
 
       if (!result.ok) {
-        vscode.window.showInformationMessage("ターミナルでテキストを選択してください");
+        // reason ごとに案内を変える。ClipboardSelection が理由を区別して返すのは
+        // 呼び出し側で出し分けるためであり、まとめると次の操作が分からなくなる。
+        vscode.window.showInformationMessage(
+          result.reason === "no-selection"
+            ? "ターミナルでテキストを選択してください"
+            : "選択されたテキストが空です。内容のある範囲を選択してください。",
+        );
         return;
       }
 
@@ -116,8 +130,13 @@ export function activate(context: vscode.ExtensionContext): void {
     const result = await readClipboard();
 
     if (!result.ok) {
+      // readClipboard は現状 "empty" しか返さないが、それに寄りかからない。
+      // 種別が増えたときに「クリップボードが空です」と誤った案内を出し続けるより、
+      // ここで分岐しておいて理由をそのまま伝えるほうが崩れ方が小さい。
       vscode.window.showInformationMessage(
-        "クリップボードが空です。送りたい内容をコピーしてから実行してください。",
+        result.reason === "empty"
+          ? "クリップボードが空です。送りたい内容をコピーしてから実行してください。"
+          : `クリップボードから取得できませんでした（${result.reason}）。`,
       );
       return;
     }
