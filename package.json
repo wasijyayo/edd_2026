@@ -8,7 +8,7 @@
   "license": "UNLICENSED",
   "engines": {
     "vscode": "^1.90.0",
-    "node": ">=22.13.0"
+    "node": "24.20.x"
   },
   "categories": [
     "Education"
@@ -54,10 +54,14 @@
     "compile": "tsc -p ./",
     "gen:concepts": "node scripts/gen-concepts.mjs",
     "check:concepts": "node scripts/gen-concepts.mjs --check",
+    "test:unit": "vitest run src/test",
+    "test:watch": "vitest src/test",
+    "test": "npm run test:unit",
     "watch": "tsc -watch -p ./",
     "lint": "eslint src scripts",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "prepare": "lefthook install"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -65,8 +69,10 @@
     "@types/vscode": "^1.90.0",
     "eslint": "^10.9.1",
     "eslint-config-prettier": "^10.1.8",
+    "lefthook": "^2.1.12",
     "prettier": "^3.9.6",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.69.0"
+    "typescript-eslint": "^8.69.0",
+    "vitest": "^5.0.0"
   }
 }
