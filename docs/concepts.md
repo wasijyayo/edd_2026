@@ -190,10 +190,10 @@ score は status を補足する数値であり、status を上書きするも�
 
 `ExtensionContext.globalState` に単一キーで保存する。
 
-| 項目 | 値                             |
-| ---- | ------------------------------ |
-| キー | `codeCompanion.learnerProfile` |
-| 値   | `LearnerProfile`               |
+| 項目 | 値                            |
+| ---- | ----------------------------- |
+| キー | `gakushuSochi.learnerProfile` |
+| 値   | `LearnerProfile`              |
 
 Learner Profile はプロジェクトではなく人に紐づくため、`workspaceState` ではなく
 `globalState` を使う。別端末との同期は行わない（同期は Pro の Cloud Sync 段階の課題）。
