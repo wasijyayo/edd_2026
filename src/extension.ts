@@ -1,4 +1,10 @@
 import * as vscode from "vscode";
+import { MockProvider } from "./ai/mock";
+import type { AIProvider } from "./ai/provider";
+import { describePendingContext } from "./chat/context-summary";
+import { openCodeCompanionChat } from "./chat/open";
+import { PendingChatContext } from "./chat/pending-context";
+import { createChatAIRequest } from "./chat/request";
 import { readClipboard, readTerminalSelection } from "./context/clipboard";
 import { collectFromEditor, collectFromText } from "./context/collector";
 import { confirmSend } from "./ui/confirm";
@@ -25,6 +31,33 @@ export function activate(context: vscode.ExtensionContext): void {
   channel = vscode.window.createOutputChannel("Code Companion");
   context.subscriptions.push(channel);
   channel.appendLine("Code Companion がアクティブになりました。");
+  const pendingChatContext = new PendingChatContext();
+  // 実AI接続 (#11) までは、UIとAI層の接続を確認できる既定実装を使う。
+  const provider: AIProvider = new MockProvider();
+  const chatParticipant = vscode.chat.createChatParticipant(
+    "codeCompanion.chat",
+    async (request, _chatContext, response) => {
+      const contextMatch = request.prompt.match(/^\[context:([^\]]+)\]\s*/);
+      const codeContext = contextMatch ? pendingChatContext.take(contextMatch[1]) : undefined;
+      const question = contextMatch ? request.prompt.slice(contextMatch[0].length) : request.prompt;
+
+      if (!codeContext) {
+        response.markdown(describePendingContext(codeContext));
+        return;
+      }
+
+      response.progress("Code Companion が考えています...");
+      const aiResponse = await provider.ask(createChatAIRequest(codeContext, question));
+
+      if (!aiResponse.ok) {
+        response.markdown(`回答を生成できませんでした（${aiResponse.error.reason}）。`);
+        return;
+      }
+
+      response.markdown(aiResponse.answer.text);
+    },
+  );
+  context.subscriptions.push(chatParticipant);
 
   const askSelection = vscode.commands.registerCommand("codeCompanion.askSelection", async () => {
     const editor = vscode.window.activeTextEditor;
@@ -42,9 +75,11 @@ export function activate(context: vscode.ExtensionContext): void {
       return;
     }
 
-    const context = await collectFromEditor(editor);
+    const codeContext = await collectFromEditor(editor);
 
-    logContext("editor", context);
+    const contextId = pendingChatContext.set(codeContext);
+    logContext("editor", codeContext);
+    await openCodeCompanionChat(contextId, vscode.commands.executeCommand);
   });
 
   const askTerminalSelection = vscode.commands.registerCommand(
