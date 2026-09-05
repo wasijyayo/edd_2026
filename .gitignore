@@ -8,6 +8,7 @@ CLAUDE.md
 
 # Node
 node_modules/
+.wrangler/
 
 # ビルド成果物
 out/

@@ -70,6 +70,7 @@ VS Code Extension、Web App、将来のCLIや他IDE連携を指す。
 ### API Server
 
 複数クライアントから利用する、プロダクトのバックエンド境界である。
+実装基盤は Hono を使う Cloudflare Workers とする。
 
 - 認証されたユーザーと端末を識別する
 - 学習イベントを冪等に受け付け、永続化する
@@ -79,6 +80,9 @@ VS Code Extension、Web App、将来のCLIや他IDE連携を指す。
 
 API Server は VS Code API や UI の型に依存しない。HTTP API の契約だけを通じて
 クライアントと接続する。
+
+WorkerのBindings型は `wrangler types` で生成し、手書きしない。Worker設定を変更したら
+`npm run gen:worker-types --workspace=@gakushu-sochi/api` を実行する。
 
 ### Database
 

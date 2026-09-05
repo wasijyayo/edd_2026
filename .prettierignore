@@ -1,3 +1,4 @@
 out
 node_modules
 package-lock.json
+apps/api/src/worker-configuration.d.ts
