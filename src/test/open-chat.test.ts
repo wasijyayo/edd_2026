@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { openCodeCompanionChat } from "../chat/open";
 
-test("opens Chat with @codecompanion inserted without sending it", async () => {
+test("@codecompanionを入力済みかつ未送信でChatを開く", async () => {
   const calls: unknown[][] = [];
 
   await openCodeCompanionChat("context-1", async (...args: unknown[]) => {
@@ -19,7 +19,7 @@ test("opens Chat with @codecompanion inserted without sending it", async () => {
   ]);
 });
 
-test("does not hide an error when opening Chat fails", async () => {
+test("Chatを開けないエラーを握り潰さない", async () => {
   const failure = new Error("Chat を開けませんでした");
 
   await expect(

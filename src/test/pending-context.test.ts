@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { PendingChatContext } from "../chat/pending-context";
 
-test("keeps the context collected before Chat opens for the participant request", () => {
+test("Chatを開く前に収集した文脈をParticipantのリクエストまで保持する", () => {
   const pending = new PendingChatContext();
   const context = {
     code: "client.fetchUser()",
@@ -24,7 +24,7 @@ test("keeps the context collected before Chat opens for the participant request"
   expect(pending.take(id)).toBe(context);
 });
 
-test("consumes context so a later unrelated Chat request cannot reuse it", () => {
+test("文脈を消費して後続の無関係なChatリクエストへ再利用しない", () => {
   const pending = new PendingChatContext();
   const context = {
     code: "value",
@@ -38,7 +38,7 @@ test("consumes context so a later unrelated Chat request cannot reuse it", () =>
   expect(pending.take(id)).toBeUndefined();
 });
 
-test("keeps contexts separate when Chat is opened twice", () => {
+test("Chatを2回開いた場合も文脈を別々に保持する", () => {
   const pending = new PendingChatContext();
   const first = {
     code: "first",

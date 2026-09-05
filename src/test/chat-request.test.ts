@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { createChatAIRequest } from "../chat/request";
 
-test("converts a Chat question and collected LSP context into a VS Code-free AIRequest", () => {
+test("Chatの質問とLSP文脈をVS Code非依存のAIRequestへ変換する", () => {
   const context = {
     code: "database.Migrate(ctx, cfg.DB)",
     source: "editor" as const,

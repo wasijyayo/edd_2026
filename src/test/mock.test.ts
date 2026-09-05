@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { MockProvider } from "../ai/mock";
 
-test("MockProvider returns a hint response for hint requests", async () => {
+test("MockProviderはHintリクエストにHint応答を返す", async () => {
   const provider = new MockProvider();
 
   const response = await provider.ask({

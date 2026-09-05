@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { describePendingContext } from "../chat/context-summary";
 
-test("describes the selected code and LSP definitions attached to a Chat request", () => {
+test("Chatリクエストへ添付する選択コードとLSP定義を説明する", () => {
   expect(
     describePendingContext({
       code: "client.fetchUser()",
@@ -19,14 +19,14 @@ test("describes the selected code and LSP definitions attached to a Chat request
         },
       ],
     }),
-  ).toBe("選択コード（TypeScript / app.ts）と、LSP で取得した定義 1 件を添付しました。");
+  ).toBe("選択コード（typescript / app.ts）と、LSP で取得した定義 1 件を添付しました。");
 });
 
-test("explains when Chat was opened without a collected context", () => {
+test("収集済み文脈なしでChatを開いた場合を説明する", () => {
   expect(describePendingContext(undefined)).toBe("選択コードの文脈は添付されていません。");
 });
 
-test("does not show undefined when the collected context has no language", () => {
+test("言語情報のない文脈でもundefinedを表示しない", () => {
   expect(
     describePendingContext({
       code: "error output",
