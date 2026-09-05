@@ -5,3 +5,16 @@
 # Claude Code
 .claude/
 CLAUDE.md
+
+# Node
+node_modules/
+
+# ビルド成果物
+out/
+dist/
+
+# 拡張のパッケージ
+*.vsix
+
+# VS Code Extension のテスト
+.vscode-test/
