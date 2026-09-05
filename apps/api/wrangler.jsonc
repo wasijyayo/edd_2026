@@ -8,4 +8,14 @@
     "enabled": true,
     "head_sampling_rate": 1,
   },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "gakushu-sochi",
+      // database_id は `wrangler d1 create gakushu-sochi` の出力で置き換える。
+      // ローカル開発（wrangler dev --local）はこの値を参照しないため空でも動く。
+      "database_id": "",
+      "migrations_dir": "migrations",
+    },
+  ],
 }
