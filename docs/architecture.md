@@ -262,10 +262,9 @@ AIをAPI経由にしないことで、同期基盤の障害が質問体験を止
 現行の `AIProvider` と `AIRequest` / `AIResponse` の分離は、この構成の出発点として
 維持する。VS Code の型を共有ドメインへ持ち込まない原則も変えない。
 
-一方、`VSCodeLMProvider.ask()` は `selectChatModels()` の失敗が例外として外へ抜ける
-可能性がある。`AIProvider.ask()` が既知の失敗を値で返す契約と、プロジェクトの
-「エラーを握りつぶさない」方針に沿い、呼び出し側でユーザー通知・詳細ログを行えるよう、
-例外経路を明示的に扱う必要がある。
+`VSCodeLMProvider.ask()` は `selectChatModels()` を含む失敗を `AIResponse` として返す。
+呼び出し側は `AIErrorReason` でユーザー通知を分岐し、詳細はログへ残す。これにより
+`AIProvider.ask()` の契約と、プロジェクトの「エラーを握りつぶさない」方針を両立する。
 
 ## 関連文書
 

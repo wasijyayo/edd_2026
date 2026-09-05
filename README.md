@@ -52,7 +52,8 @@
 - `apps/vscode-extension` はVS Code / LSPの生データを構造化し、表示と入力を担当する。
 - `apps/api` は学習イベントの正本、習熟度導出、認証、同期を担当する。
 
-`AIProvider` interface と `AIRequest` / `AIResponse` は `apps/vscode-extension/src/ai/` に置く。Managed AI はAPIのHTTP境界として追加し、同一の内部interfaceを無理に共有しない。
+`AIProvider` interface は `apps/vscode-extension/src/ai/` に置く。`AIRequest` / `AIResponse` は
+`packages/domain` の VS Code 非依存な契約として共有し、Managed AI は API の HTTP 境界でこれを変換する。
 
 `AIProvider.ask` は失敗しても例外を投げず、`AIResponse` の値として理由を返す。呼び出し側が `AIErrorReason` で案内を出し分けられるようにするため。ストリーミングは `askStream` を任意メソッドとして空けてあり、実装するかどうかは 調査/01 (#4) の結果で決める。
 
