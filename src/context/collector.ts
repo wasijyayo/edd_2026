@@ -156,9 +156,13 @@ async function collectDefinitions(
 
       seen.add(key);
 
+      // getWordRangeAtPosition は範囲が無いと undefined を返す。
+      // getText(undefined) はドキュメント全体を返すため、そのまま渡すと
+      // symbol にファイル全体が入り、プロンプトへ載る。必ず範囲を確認してから読む。
+      const wordRange = document.getWordRangeAtPosition(position);
       const definition = await readDefinition(
         location,
-        document.getText(document.getWordRangeAtPosition(position)),
+        wordRange ? document.getText(wordRange) : undefined,
       );
 
       if (definition) {
@@ -185,7 +189,11 @@ async function readDefinition(
 ): Promise<ExternalDefinition | undefined> {
   try {
     const target = await vscode.workspace.openTextDocument(location.uri);
-    const startLine = location.range.start.line;
+
+    // 行番号は別ファイルのもので、こちらが検証していない値である。
+    // 言語サーバーが編集前の位置を返すこともあるため、必ず対象の範囲へ収める。
+    // ここを超えると lineAt が投げ、catch で定義が黙って捨てられる。
+    const startLine = Math.max(0, Math.min(target.lineCount - 1, location.range.start.line));
     const endLine = Math.min(target.lineCount - 1, startLine + DEFINITION_LINE_COUNT - 1);
 
     return {
