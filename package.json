@@ -24,6 +24,10 @@
       {
         "command": "codeCompanion.askTerminalSelection",
         "title": "Code Companion: Ask Terminal Selection"
+      },
+      {
+        "command": "codeCompanion.askClipboard",
+        "title": "Code Companion: Ask Clipboard"
       }
     ],
     "keybindings": [
@@ -38,6 +42,11 @@
         "key": "ctrl+shift+j",
         "mac": "cmd+shift+j",
         "when": "terminalFocus"
+      },
+      {
+        "command": "codeCompanion.askClipboard",
+        "key": "ctrl+alt+j",
+        "mac": "cmd+alt+j"
       }
     ]
   },
