@@ -2,8 +2,18 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import prettier from "eslint-config-prettier";
 
+// VS Code の ESLint 拡張はモノレポのルートとこのアプリの両方を候補にできる。
+// 型情報を使うルールを追加しても tsconfig の探索先が曖昧にならないよう、
+// この設定ファイルがあるディレクトリを明示する。
+const tsconfigRootDir = import.meta.dirname;
+
 export default [
-  { ignores: ["out/**", "node_modules/**"] },
+  {
+    ignores: ["out/**", "node_modules/**"],
+    languageOptions: {
+      parserOptions: { tsconfigRootDir },
+    },
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   prettier,
