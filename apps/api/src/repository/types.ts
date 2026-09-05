@@ -1,0 +1,60 @@
+/**
+ * 永続化の境界。
+ *
+ * ルートハンドラは D1 を直接触らず、この interface だけに依存する。
+ * `test:unit` は素の vitest であり `@cloudflare/vitest-pool-workers` ではないため、
+ * この継ぎ目が無いとハンドラのテストに Worker ランタイムが要る。
+ *
+ * SQL とドメインの変換もここへ閉じ込める。イベントの `conceptIds` は D1 上では
+ * JSON 文字列、発生時刻は文字列と数値の2列という表現になっているが、
+ * この境界の外へその都合を漏らさない。
+ */
+
+import type { LearningEvent } from "@gakushu-sochi/domain";
+
+/** 保存するイベント。検証済みの `LearningEvent` に、サーバー側が付与する情報を足したもの。 */
+export interface StoredEventInput {
+  event: LearningEvent;
+  /** 送信元の端末。重複の急増を診断するときに送信元を辿るために持つ。 */
+  clientId: string;
+  /** サーバーが受理した時刻（epoch ミリ秒）。オフラインキューの遅延を測る。 */
+  receivedAtMs: number;
+}
+
+/**
+ * イベント1件の保存結果。
+ *
+ * `duplicate` は「**このユーザーが**同じ ID を既に送っていた」を意味する。
+ * イベント ID はクライアント生成でグローバルには一意でないため、
+ * 他ユーザーの同じ文字列と衝突して重複扱いになってはならない。
+ * 実装はユーザー単位の主キーでこれを保証する。
+ */
+export interface AppendResult {
+  id: string;
+  duplicate: boolean;
+}
+
+export interface LearningEventRepository {
+  /**
+   * イベントを冪等に追記する。
+   *
+   * 同じ ID が同一ユーザーに既に存在する場合、既存行を上書きせず
+   * `duplicate: true` を返す。追記のみで、あとから書き換えないため
+   * （docs/architecture.md）、後着の再送で内容が変わることは無い。
+   *
+   * @returns 入力と同じ順序の結果。
+   */
+  append(userId: string, inputs: readonly StoredEventInput[]): Promise<AppendResult[]>;
+
+  /**
+   * 1ユーザーの全イベントを発生時刻順で読む。
+   *
+   * 並び順は packages/domain の畳み込み順（発生時刻の昇順、同時刻は ID の昇順）と
+   * 一致させる。`deriveMasteryFromEvents` は与えられた順に依存しないが、
+   * SQL 側で同じ順序を保つことで、将来ページングを入れても導出結果が変わらない。
+   */
+  listByUser(userId: string): Promise<LearningEvent[]>;
+
+  /** 1ユーザーのイベント総件数。Profile レスポンスの `eventCount` に使う。 */
+  countByUser(userId: string): Promise<number>;
+}
