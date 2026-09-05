@@ -1,4 +1,4 @@
-import type { CodeContext } from "../types/context";
+import type { CodeContext } from "@gakushu-sochi/domain";
 
 /**
  * Chat を開く操作時に収集した文脈。

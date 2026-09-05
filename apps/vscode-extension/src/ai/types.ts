@@ -6,8 +6,7 @@
  * UI ラインが実 AI 接続を待たずに進められるという AI/01 の目的そのものが崩れる。
  */
 
-import type { ConceptId, ConceptMastery } from "./profile";
-import type { CodeContext } from "./context";
+import type { CodeContext, ConceptId, ConceptMastery } from "@gakushu-sochi/domain";
 
 // ---------------------------------------------------------------------------
 // Request

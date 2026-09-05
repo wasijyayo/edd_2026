@@ -14,7 +14,7 @@
 コードを書き換えたら、まずこの3つを通す。PRを出す前にも実行する。
 
 ```bash
-npm run compile        # 型が通るか。out/ に成果物が出る
+npm run compile        # 全共有パッケージと拡張の型が通るか
 npm run lint           # 書き方の規約に反していないか
 npm run format:check   # 整形済みか。崩れていれば npm run format で直す
 ```
@@ -23,10 +23,10 @@ npm run format:check   # 整形済みか。崩れていれば npm run format で
 
 ### ESLintルールの確認
 
-`src/ai/` から `vscode` を import できないルールが効いていることを確認する場合は、一時的に次のファイルを作って `npm run lint` を実行する。
+`apps/vscode-extension/src/ai/` から `vscode` を import できないルールが効いていることを確認する場合は、一時的に次のファイルを作って `npm run lint` を実行する。
 
 ```ts
-// src/ai/_probe.ts
+// apps/vscode-extension/src/ai/_probe.ts
 import * as vscode from "vscode";
 export const probe = vscode.version;
 ```
@@ -168,6 +168,6 @@ VS Code の外（ブラウザ、Slack、PDF、他のアプリ）でコピーし�
 
 ## 自動テストについて
 
-現時点では導入しない。VS Code拡張のテストはテストのたびにVS Code本体を起動する仕組みが必要で、セットアップも実行も重い。現在の実装量に対して割に合わない。
-
-導入を判断するのは AI/01 (#10) に着手するタイミングとする。`src/ai/` は ESLint のルールにより `vscode` へ依存しない純粋な TypeScript になるため、VS Code を起動せずに通常の単体テストが書ける。プロンプトの組み立て（AI/03 #12）は、まさにテストで守りたい対象である。
+VS Code本体を起動しない単体テストを `apps/vscode-extension/src/test/` に置く。実行は `npm test`。
+共有ドメインである `packages/domain` も VS Code に依存しないため、同じ方針で単体テストを
+追加する。VS Code 本体を必要とするE2Eテストは別途導入する。

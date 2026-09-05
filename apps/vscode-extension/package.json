@@ -1,0 +1,87 @@
+{
+  "name": "gakushu-sochi",
+  "displayName": "Gakushu Sochi",
+  "description": "選択したコードやエラーをその場でAIに質問しながら学べる、学習向けAIコンパニオン",
+  "version": "0.0.1",
+  "publisher": "TODO-publisher",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": {
+    "vscode": "^1.90.0",
+    "node": "24.20.x"
+  },
+  "categories": [
+    "Education"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "chatParticipants": [
+      {
+        "id": "gakushuSochi.chat",
+        "name": "gakushu-sochi",
+        "fullName": "Gakushu Sochi",
+        "description": "選択したコードを学習する"
+      }
+    ],
+    "commands": [
+      {
+        "command": "gakushuSochi.askSelection",
+        "title": "Gakushu Sochi: Ask Selection"
+      },
+      {
+        "command": "gakushuSochi.askTerminalSelection",
+        "title": "Gakushu Sochi: Ask Terminal Selection"
+      },
+      {
+        "command": "gakushuSochi.askClipboard",
+        "title": "Gakushu Sochi: Ask Clipboard"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "gakushuSochi.askSelection",
+        "key": "ctrl+shift+j",
+        "mac": "cmd+shift+j",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "gakushuSochi.askTerminalSelection",
+        "key": "ctrl+shift+j",
+        "mac": "cmd+shift+j",
+        "when": "terminalFocus"
+      },
+      {
+        "command": "gakushuSochi.askClipboard",
+        "key": "ctrl+alt+j",
+        "mac": "cmd+alt+j"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "test:unit": "vitest run src/test",
+    "test:watch": "vitest src/test",
+    "test": "npm run test:unit",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "lefthook install"
+  },
+  "dependencies": {
+    "@gakushu-sochi/domain": "file:../../packages/domain"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.0.0",
+    "@types/vscode": "^1.90.0",
+    "eslint": "^10.9.1",
+    "eslint-config-prettier": "^10.1.8",
+    "lefthook": "^2.1.12",
+    "prettier": "^3.9.6",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.69.0",
+    "vitest": "^5.0.0"
+  }
+}

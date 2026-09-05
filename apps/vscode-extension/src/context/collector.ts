@@ -4,7 +4,7 @@ import type {
   ContextLevel,
   ContextSource,
   ExternalDefinition,
-} from "../types/context";
+} from "@gakushu-sochi/domain";
 
 /**
  * 選択範囲の前後に含める行数。

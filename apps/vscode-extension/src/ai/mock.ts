@@ -6,8 +6,8 @@
  * デモ時の Fallback ではなく、開発中の既定実装として使う。
  */
 
+import type { AIError, AIRequest, AIResponse } from "./types";
 import type { AIProvider } from "./provider";
-import type { AIError, AIRequest, AIResponse } from "../types/ai";
 
 const MOCK_HINT_TEXT = [
   "【Hint】",

@@ -1,4 +1,4 @@
-import type { CodeContext } from "../types/context";
+import type { CodeContext } from "@gakushu-sochi/domain";
 
 /** Chat Participant が、今回どの文脈を受け取ったかを明示する文言を作る。 */
 export function describePendingContext(context: CodeContext | undefined): string {

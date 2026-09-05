@@ -1,9 +1,9 @@
 // このファイルは自動生成される。直接編集しない。
-// 一覧の正典は src/types/concepts.md。編集したら npm run gen:concepts を実行する。
+// 一覧の正典は concepts.md。編集したら npm run gen:concepts を実行する。
 
 import type { Concept, ConceptId } from "./profile";
 
-/** src/types/concepts.md で定義された Concept の一覧。定義順は学習の推奨順を兼ねる。 */
+/** concepts.md で定義された Concept の一覧。定義順は学習の推奨順を兼ねる。 */
 export const CONCEPTS: readonly Concept[] = [
   {
     id: "go.variable_declaration",

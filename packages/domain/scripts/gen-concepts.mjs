@@ -1,7 +1,7 @@
 /**
- * src/types/concepts.md の Concept 一覧テーブルから concepts.generated.ts を書き出す。
+ * packages/domain/concepts.md の Concept 一覧テーブルから src/concepts.generated.ts を書き出す。
  *
- * Concept 一覧の正典は src/types/concepts.md である。このスクリプトは新しい情報を作らず、
+ * Concept 一覧の正典は packages/domain/concepts.md である。このスクリプトは新しい情報を作らず、
  * 同じ内容を実行時に import できる形へ写すだけである。
  * 命名規則や追加手順といったルールは docs/concepts.md にある。
  *
@@ -11,8 +11,8 @@
 
 import { readFileSync, writeFileSync } from "node:fs";
 
-const SOURCE = "src/types/concepts.md";
-const TARGET = "src/types/concepts.generated.ts";
+const SOURCE = "concepts.md";
+const TARGET = "src/concepts.generated.ts";
 const CONCEPT_ID_PATTERN = /^[a-z0-9]+\.[a-z0-9_]+$/;
 
 /**

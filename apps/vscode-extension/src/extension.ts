@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import type { AIProvider } from "./ai/provider";
+import type { CodeContext } from "@gakushu-sochi/domain";
 import { VSCodeLMProvider } from "./ai/vscodeLm";
 import { CONSUMED_CONTEXT_MESSAGE, describePendingContext } from "./chat/context-summary";
 import { openGakushuSochiChat } from "./chat/open";
@@ -7,7 +8,6 @@ import { PendingChatContext } from "./chat/pending-context";
 import { createChatAIRequest } from "./chat/request";
 import { readClipboard, readTerminalSelection } from "./context/clipboard";
 import { collectFromEditor, collectFromText } from "./context/collector";
-import type { CodeContext } from "./types/context";
 import { confirmSend } from "./ui/confirm";
 
 /**

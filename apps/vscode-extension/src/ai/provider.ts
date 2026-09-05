@@ -5,10 +5,10 @@
  * ここに VS Code API を import しない。VSCodeLMProvider (#11) も
  * MockProvider も、この interface の実装として等価に差し替えられること。
  *
- * データ契約は src/types/ai.ts が持つ。このファイルは interface だけを置く。
+ * データ契約は types.ts が持つ。このファイルは interface だけを置く。
  */
 
-import type { AIRequest, AIResponse } from "../types/ai";
+import type { AIRequest, AIResponse } from "./types";
 
 /**
  * 回答を生成する主体。

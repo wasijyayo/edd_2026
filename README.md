@@ -19,64 +19,44 @@
   → Hint / Explain を選ぶ
   → 選択範囲・周辺コード・DiagnosticsをAIへ渡す
   → 次の一手とヒントを表示する
-  → 理解度と解決結果をローカルに記録する
+  → 理解度と解決結果を端末に記録し、APIへ同期する
 ```
 
-対象外: WebviewによるリッチUI、サーバー・同期、完全なPersonal Learning Map、ターミナル／外部クリップボード入力。
+対象外: WebviewによるリッチUI、完全なPersonal Learning Map。
 
 ## ファイル構成
 
-2日間のHackathonではモノレポや別バックエンドを作らず、単一のVS Code Extensionにまとめる。
+複数クライアントで同じ Personal Learning Map を扱うため、モノレポで管理する。
 
 ```text
 .
-├─ src/
-│  ├─ extension.ts              # コマンド登録と処理フローの入口
-│  ├─ types/
-│  │  ├─ profile.ts             # Learner Profile / Concept / 学習イベントの型
-│  │  ├─ context.ts             # CodeContext（AIへ渡すコード文脈）の型
-│  │  ├─ ai.ts                  # AIRequest / AIResponse などAI層のデータ契約
-│  │  ├─ concepts.md            # Concept一覧の正典（人が編集する表）
-│  │  └─ concepts.generated.ts  # concepts.mdから自動生成（編集しない）
-│  ├─ context/
-│  │  ├─ collector.ts           # 選択範囲・周辺コード・言語情報をCodeContextにする
-│  │  └─ diagnostics.ts         # カーソル位置のLSP Diagnosticsを取得する
-│  ├─ ai/
-│  │  ├─ provider.ts            # AIProvider interface
-│  │  ├─ mock.ts                # 実AIが使えない場合の固定応答
-│  │  ├─ vscodeLm.ts            # VS Code Language Model APIとの接続
-│  │  └─ prompt.ts              # Hint / Explain用のプロンプト組み立て
-│  ├─ learning/
-│  │  └─ events.ts              # 理解度・解決結果をglobalStateへ保存する
-│  └─ ui/
-│     ├─ input.ts               # Hint / Explain、理解度の選択
-│     └─ output.ts              # 回答・エラー・ローディングの表示
-├─ scripts/
-│  └─ gen-concepts.mjs          # concepts.mdの表からConcept一覧を生成する
+├─ apps/
+│  ├─ vscode-extension/         # VS Code固有のUI・コンテキスト収集・ローカルキュー
+│  ├─ api/                      # 認証、同期、Managed AIを担うAPI Server
+│  └─ web/                      # Learning Mapと設定のWeb App
+├─ packages/
+│  ├─ domain/                   # Concept、LearningEvent、Masteryの共有ドメイン
 ├─ docs/
 │  ├─ idea.md                   # プロダクトの長期構想
 │  ├─ concepts.md               # Concept一覧・習熟度ルール・マイグレーション方針
 │  └─ testing.md                # デモケースと手動テスト手順
-├─ package.json
+├─ package.json                  # npm workspacesの入口
 └─ README.md
 ```
 
 ### 責務の境界
 
-- `types/` は他モジュールに依存しないデータ契約だけを置く。VS Code APIをimportしない。
-- `context/` はVS Code / LSPの生データを、AIが扱える構造に変換する。
-- `ai/` はVS CodeのUIを直接扱わず、`AIRequest`を受けて`AIResponse`を返す。
-- `learning/` は回答の前後に生じる学習イベントだけをローカル保存する。
-- `ui/` は入力と表示を担当し、AIの判断ロジックを持たない。
-- `extension.ts` は各モジュールを接続するだけにする。
+- `packages/domain` は他モジュールに依存しないドメイン契約と習熟度規則を置く。VS Code APIをimportしない。
+- `apps/vscode-extension` はVS Code / LSPの生データを構造化し、表示と入力を担当する。
+- `apps/api` は学習イベントの正本、習熟度導出、認証、同期を担当する。
 
-`AIProvider` interfaceは `src/ai/provider.ts` に置き、`AIRequest` / `AIResponse` は `src/types/ai.ts` に集約して、AI担当とVS Code担当の共有契約とする。`ai/` から `types/` への依存は許すが、逆向きの依存は作らない。
+`AIProvider` interface と `AIRequest` / `AIResponse` は `apps/vscode-extension/src/ai/` に置く。Managed AI はAPIのHTTP境界として追加し、同一の内部interfaceを無理に共有しない。
 
 `AIProvider.ask` は失敗しても例外を投げず、`AIResponse` の値として理由を返す。呼び出し側が `AIErrorReason` で案内を出し分けられるようにするため。ストリーミングは `askStream` を任意メソッドとして空けてあり、実装するかどうかは 調査/01 (#4) の結果で決める。
 
-Learner Profile / Concept / 学習イベントの型は `src/types/profile.ts` に集約する。命名規則・Concept追加手順・習熟度の更新ルール・スキーマのマイグレーション方針は `docs/concepts.md` が正典とする。
+Learner Profile / Concept / 学習イベントの型は `packages/domain/src/profile.ts` に集約する。命名規則・Concept追加手順・習熟度の更新ルール・スキーマのマイグレーション方針は `docs/concepts.md` が正典とする。
 
-Concept一覧そのものは `src/types/concepts.md` を正典とし、生成物 `src/types/concepts.generated.ts` の隣に置く。表を編集したら `npm run gen:concepts` を実行する。
+Concept一覧そのものは `packages/domain/concepts.md` を正典とし、生成物 `packages/domain/src/concepts.generated.ts` の隣に置く。表を編集したら `npm run gen:concepts` を実行する。
 
 ## 開発
 
@@ -86,4 +66,5 @@ npm run compile
 npm run check:concepts   # Concept一覧と生成物が一致しているか検査する
 ```
 
-VS Codeでこのフォルダを開き、`F5` でExtension Development Hostを起動します。
+VS Codeで `apps/vscode-extension` を開き、`F5` でExtension Development Hostを起動します。
+全体方針は [`docs/architecture.md`](docs/architecture.md) を参照する。

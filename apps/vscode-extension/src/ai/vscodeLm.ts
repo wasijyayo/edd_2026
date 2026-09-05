@@ -11,8 +11,8 @@
  */
 
 import * as vscode from "vscode";
+import type { AIError, AIErrorReason, AIRequest, AIResponse } from "./types";
 import type { AIProvider } from "./provider";
-import type { AIError, AIErrorReason, AIRequest, AIResponse } from "../types/ai";
 
 /**
  * 既定で使う family。

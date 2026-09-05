@@ -1,0 +1,6 @@
+{
+  "name": "@gakushu-sochi/api",
+  "version": "0.0.1",
+  "private": true,
+  "description": "認証、学習イベント同期、Learning Profile、Managed AI を担うAPI Server"
+}
