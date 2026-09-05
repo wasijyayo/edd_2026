@@ -34,6 +34,24 @@ export interface AppendResult {
   duplicate: boolean;
 }
 
+/**
+ * ユーザーと端末の登録。
+ *
+ * `learning_events.user_id` は `users(id)` を参照しており、D1 は外部キーを
+ * 実際に強制する（`PRAGMA foreign_keys` が 1）。そのため認証で userId が
+ * 決まっただけでは書き込めず、イベントを追記する前に行の存在を保証する必要がある。
+ * これが無いと同期は必ず FOREIGN KEY constraint failed で落ちる。
+ */
+export interface IdentityRepository {
+  /**
+   * ユーザーと端末の行を用意する。既にあれば何もしない。
+   *
+   * 端末の `lastSeenAtMs` だけは毎回更新する。最後に同期した時刻は
+   * 端末ごとに変わり続ける値であり、初回登録時の値を残しても意味を持たないため。
+   */
+  ensureUserAndDevice(params: { userId: string; clientId: string; nowMs: number }): Promise<void>;
+}
+
 export interface LearningEventRepository {
   /**
    * イベントを冪等に追記する。

@@ -6,7 +6,12 @@
  */
 
 import type { LearningEvent, LearningEventType, EventOrigin } from "@gakushu-sochi/domain";
-import type { AppendResult, LearningEventRepository, StoredEventInput } from "./types.js";
+import type {
+  AppendResult,
+  IdentityRepository,
+  LearningEventRepository,
+  StoredEventInput,
+} from "./types.js";
 
 /** learning_events の1行。SELECT する列と対応させる。 */
 interface EventRow {
@@ -88,11 +93,21 @@ export class D1LearningEventRepository implements LearningEventRepository {
     const results = await this.db.batch(bound);
 
     return inputs.map((input, index) => {
-      const meta = results[index]?.meta;
+      const changes = results[index]?.meta?.changes;
+
+      // changes が取れなかった場合は既定値で埋めない。0 として扱うと
+      // 「全件重複」と応答しながら実際には書き込む状態になり、クライアントは
+      // 送信キューを空にしてよいと判断してしまう。握りつぶさず落とす。
+      if (typeof changes !== "number") {
+        throw new Error(
+          `D1 batch result has no meta.changes (index=${index}, id=${input.event.id})`,
+        );
+      }
+
       // 書き込まれた行が0なら、同じ ID が既にあったということ。
       // 主キーが (user_id, id) なので、これは常に「このユーザーの再送」を意味し、
       // 他ユーザーの同じ文字列との衝突ではない。
-      return { id: input.event.id, duplicate: (meta?.changes ?? 0) === 0 };
+      return { id: input.event.id, duplicate: changes === 0 };
     });
   }
 
@@ -117,5 +132,35 @@ export class D1LearningEventRepository implements LearningEventRepository {
       .first<{ count: number }>();
 
     return row?.count ?? 0;
+  }
+}
+
+/** `IdentityRepository` の D1 実装。 */
+export class D1IdentityRepository implements IdentityRepository {
+  constructor(private readonly db: D1Database) {}
+
+  async ensureUserAndDevice(params: {
+    userId: string;
+    clientId: string;
+    nowMs: number;
+  }): Promise<void> {
+    const { userId, clientId, nowMs } = params;
+
+    // users を先に入れる。devices と learning_events の両方が users(id) を
+    // 参照しているため、順序を逆にすると外部キー制約で落ちる。
+    await this.db.batch([
+      this.db
+        .prepare(`INSERT INTO users (id, created_at_ms) VALUES (?, ?) ON CONFLICT (id) DO NOTHING`)
+        .bind(userId, nowMs),
+      this.db
+        .prepare(
+          `INSERT INTO devices (id, user_id, client_id, created_at_ms, last_seen_at_ms)
+           VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT (user_id, client_id) DO UPDATE SET last_seen_at_ms = excluded.last_seen_at_ms`,
+        )
+        // 端末の代理キーはユーザーと clientId から決まる。ランダムな ID にすると
+        // ON CONFLICT で既存行へ収束させたときに主キーだけが毎回変わってしまう。
+        .bind(`${userId}:${clientId}`, userId, clientId, nowMs, nowMs),
+    ]);
   }
 }

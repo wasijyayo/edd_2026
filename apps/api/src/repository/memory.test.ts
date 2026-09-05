@@ -1,6 +1,6 @@
 import { beforeEach, expect, test } from "vitest";
 import type { LearningEvent } from "@gakushu-sochi/domain";
-import { InMemoryLearningEventRepository } from "./memory.js";
+import { InMemoryIdentityRepository, InMemoryLearningEventRepository } from "./memory.js";
 import type { StoredEventInput } from "./types.js";
 
 let repo: InMemoryLearningEventRepository;
@@ -106,4 +106,42 @@ test("イベントの無いユーザーは空を返す", async () => {
 
 test("空の入力を受け付ける", async () => {
   expect(await repo.append("user-a", [])).toEqual([]);
+});
+
+test("ユーザーと端末を登録し、既存なら重複させない", async () => {
+  const identity = new InMemoryIdentityRepository();
+
+  await identity.ensureUserAndDevice({ userId: "user-a", clientId: "client-1", nowMs: 100 });
+  await identity.ensureUserAndDevice({ userId: "user-a", clientId: "client-1", nowMs: 200 });
+
+  expect(identity.users.size).toBe(1);
+  expect(identity.devices.size).toBe(1);
+});
+
+test("同期のたびに端末の最終同期時刻を更新する", async () => {
+  const identity = new InMemoryIdentityRepository();
+
+  await identity.ensureUserAndDevice({ userId: "user-a", clientId: "client-1", nowMs: 100 });
+  await identity.ensureUserAndDevice({ userId: "user-a", clientId: "client-1", nowMs: 999 });
+
+  expect(identity.devices.get("user-a:client-1")?.lastSeenAtMs).toBe(999);
+});
+
+test("作成時刻は登録し直しても上書きしない", async () => {
+  const identity = new InMemoryIdentityRepository();
+
+  await identity.ensureUserAndDevice({ userId: "user-a", clientId: "client-1", nowMs: 100 });
+  await identity.ensureUserAndDevice({ userId: "user-a", clientId: "client-1", nowMs: 999 });
+
+  expect(identity.users.get("user-a")?.createdAtMs).toBe(100);
+});
+
+test("同じユーザーの別端末は別の行になる", async () => {
+  const identity = new InMemoryIdentityRepository();
+
+  await identity.ensureUserAndDevice({ userId: "user-a", clientId: "client-1", nowMs: 100 });
+  await identity.ensureUserAndDevice({ userId: "user-a", clientId: "client-2", nowMs: 100 });
+
+  expect(identity.users.size).toBe(1);
+  expect(identity.devices.size).toBe(2);
 });

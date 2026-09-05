@@ -8,7 +8,12 @@
  */
 
 import type { LearningEvent } from "@gakushu-sochi/domain";
-import type { AppendResult, LearningEventRepository, StoredEventInput } from "./types.js";
+import type {
+  AppendResult,
+  IdentityRepository,
+  LearningEventRepository,
+  StoredEventInput,
+} from "./types.js";
 
 export class InMemoryLearningEventRepository implements LearningEventRepository {
   /** userId -> (eventId -> event)。ユーザー単位で冪等にするための入れ子。 */
@@ -47,5 +52,34 @@ export class InMemoryLearningEventRepository implements LearningEventRepository 
 
   countByUser(userId: string): Promise<number> {
     return Promise.resolve(this.byUser.get(userId)?.size ?? 0);
+  }
+}
+
+/**
+ * `IdentityRepository` のインメモリ実装。テスト用。
+ *
+ * D1 実装と違い外部キーは無いが、ハンドラが登録を呼び忘れていないかを
+ * テストで確かめられるよう、登録済みの組を記録しておく。
+ */
+export class InMemoryIdentityRepository implements IdentityRepository {
+  readonly users = new Map<string, { createdAtMs: number }>();
+  readonly devices = new Map<string, { userId: string; clientId: string; lastSeenAtMs: number }>();
+
+  ensureUserAndDevice(params: { userId: string; clientId: string; nowMs: number }): Promise<void> {
+    const { userId, clientId, nowMs } = params;
+
+    if (!this.users.has(userId)) {
+      this.users.set(userId, { createdAtMs: nowMs });
+    }
+
+    const deviceKey = `${userId}:${clientId}`;
+    const existing = this.devices.get(deviceKey);
+    if (existing === undefined) {
+      this.devices.set(deviceKey, { userId, clientId, lastSeenAtMs: nowMs });
+    } else {
+      existing.lastSeenAtMs = nowMs;
+    }
+
+    return Promise.resolve();
   }
 }
