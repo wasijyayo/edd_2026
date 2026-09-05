@@ -117,6 +117,30 @@ function describeFileName(document: vscode.TextDocument): string {
 }
 
 /**
+ * 定義先のファイルを、どこにあるかが分かる形で表す。
+ *
+ * 定義はファイル名だけでは足りない。`log/slog/logger.go` と
+ * `internal/app/logger.go` はどちらも "logger.go" になり、
+ * AI から見ると「同じファイル内の定義」と読めてしまう。
+ *
+ * ワークスペース内ならそこからの相対パスを返す。ユーザーの絶対パスは含まれない。
+ * ワークスペース外（標準ライブラリ、依存パッケージ）は末尾2階層に切り詰める。
+ * 絶対パスを避けつつ どこのファイルなのか程度の手がかりは残すため。
+ */
+function describeDefinitionPath(document: vscode.TextDocument): string {
+  const relative = vscode.workspace.asRelativePath(document.uri, false);
+
+  // asRelativePath はワークスペース外だと絶対パスをそのまま返す。
+  if (!relative.startsWith("/")) {
+    return relative;
+  }
+
+  const segments = relative.split("/").filter((segment) => segment !== "");
+
+  return segments.slice(-2).join("/");
+}
+
+/**
  * 選択範囲内の識別子から、選択範囲の外にある定義を集める。
  *
  * 言語サーバーが無い、起動前、定義が同一ファイル内にある、のいずれでも空配列を返す。
@@ -197,7 +221,7 @@ async function readDefinition(
     const endLine = Math.min(target.lineCount - 1, startLine + DEFINITION_LINE_COUNT - 1);
 
     return {
-      fileName: describeFileName(target),
+      fileName: describeDefinitionPath(target),
       code: target.getText(
         new vscode.Range(startLine, 0, endLine, target.lineAt(endLine).range.end.character),
       ),
