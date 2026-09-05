@@ -9,7 +9,7 @@ AIコスト戦略は「ユーザー自身のCopilot契約を使う `vscode.lm` A
 ## 検証環境
 
 - `@types/vscode`: 1.136.0（`package.json` の `engines.vscode` は `^1.90.0`）
-- 検証コード: `experiment/issue-4-lm-api` ブランチの使い捨てコマンド `codeCompanion.debugLmProbe`（mainにはマージしない）
+- 検証コード: `experiment/issue-4-lm-api` ブランチの使い捨てコマンド `gakushuSochi.debugLmProbe`（mainにはマージしない）
 
 ---
 

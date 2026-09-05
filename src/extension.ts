@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import type { AIProvider } from "./ai/provider";
 import { VSCodeLMProvider } from "./ai/vscodeLm";
 import { CONSUMED_CONTEXT_MESSAGE, describePendingContext } from "./chat/context-summary";
-import { openCodeCompanionChat } from "./chat/open";
+import { openGakushuSochiChat } from "./chat/open";
 import { PendingChatContext } from "./chat/pending-context";
 import { createChatAIRequest } from "./chat/request";
 import { readClipboard, readTerminalSelection } from "./context/clipboard";
@@ -29,20 +29,20 @@ function logContext(label: string, value: unknown): void {
 }
 
 export function activate(context: vscode.ExtensionContext): void {
-  channel = vscode.window.createOutputChannel("Code Companion");
+  channel = vscode.window.createOutputChannel("Gakushu Sochi");
   context.subscriptions.push(channel);
-  channel.appendLine("Code Companion がアクティブになりました。");
+  channel.appendLine("Gakushu Sochi がアクティブになりました。");
   const pendingChatContext = new PendingChatContext();
   // ユーザー自身の Copilot 契約を使って回答を生成する。
   const provider: AIProvider = new VSCodeLMProvider();
 
-  /** 文脈を保持して、最初の質問を入力済みの Code Companion Chat を開く。 */
+  /** 文脈を保持して、最初の質問を入力済みの Gakushu Sochi Chat を開く。 */
   async function openChatForContext(codeContext: CodeContext): Promise<void> {
     const contextId = pendingChatContext.set(codeContext);
     logContext(codeContext.source, codeContext);
 
     try {
-      await openCodeCompanionChat(contextId, vscode.commands.executeCommand);
+      await openGakushuSochiChat(contextId, vscode.commands.executeCommand);
     } catch (error) {
       // Chat が開かなければ Participant は呼ばれず、保持した文脈は永久に取り出されない。
       // 捨てるのは確実だが、黙って捨てるとユーザーは押した操作が無反応にしか見えない。
@@ -50,13 +50,13 @@ export function activate(context: vscode.ExtensionContext): void {
       pendingChatContext.discard(contextId);
       channel.appendLine(`Chat を開けませんでした: ${String(error)}`);
       vscode.window.showErrorMessage(
-        "Code Companion Chat を開けませんでした。GitHub Copilot Chat が有効か確認してください。",
+        "Gakushu Sochi Chat を開けませんでした。GitHub Copilot Chat が有効か確認してください。",
       );
     }
   }
 
   const chatParticipant = vscode.chat.createChatParticipant(
-    "codeCompanion.chat",
+    "gakushuSochi.chat",
     async (request, _chatContext, response) => {
       const contextMatch = request.prompt.match(/^\[context:([^\]]+)\]\s*/);
       const question = contextMatch ? request.prompt.slice(contextMatch[0].length) : request.prompt;
@@ -75,7 +75,7 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
 
-      response.progress("Code Companion が考えています...");
+      response.progress("Gakushu Sochi が考えています...");
       const aiResponse = await provider.ask(createChatAIRequest(codeContext, question));
 
       if (!aiResponse.ok) {
@@ -88,7 +88,7 @@ export function activate(context: vscode.ExtensionContext): void {
   );
   context.subscriptions.push(chatParticipant);
 
-  const askSelection = vscode.commands.registerCommand("codeCompanion.askSelection", async () => {
+  const askSelection = vscode.commands.registerCommand("gakushuSochi.askSelection", async () => {
     const editor = vscode.window.activeTextEditor;
 
     // エディタが開いていない状態でコマンドパレットから実行された場合。
@@ -110,7 +110,7 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   const askTerminalSelection = vscode.commands.registerCommand(
-    "codeCompanion.askTerminalSelection",
+    "gakushuSochi.askTerminalSelection",
     async () => {
       const result = await readTerminalSelection();
 
@@ -138,7 +138,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // エディタにもターミナルにも当てはまらない入力元（ブラウザ、他アプリ）向け。
   // キーバインドは割り当てない。他アプリから戻った直後はフォーカス位置が
   // 予測できず、askSelection や askTerminalSelection が誤って動くため。
-  const askClipboard = vscode.commands.registerCommand("codeCompanion.askClipboard", async () => {
+  const askClipboard = vscode.commands.registerCommand("gakushuSochi.askClipboard", async () => {
     const result = await readClipboard();
 
     if (!result.ok) {
