@@ -43,8 +43,10 @@
   },
   "scripts": {
     "compile": "tsc -p ./",
+    "gen:concepts": "node scripts/gen-concepts.mjs",
+    "check:concepts": "node scripts/gen-concepts.mjs --check",
     "watch": "tsc -watch -p ./",
-    "lint": "eslint src",
+    "lint": "eslint src scripts",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

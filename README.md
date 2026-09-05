@@ -22,6 +22,10 @@
 .
 ├─ src/
 │  ├─ extension.ts              # コマンド登録と処理フローの入口
+│  ├─ types/
+│  │  ├─ profile.ts             # Learner Profile / Concept / 学習イベントの型
+│  │  ├─ concepts.md            # Concept一覧の正典（人が編集する表）
+│  │  └─ concepts.generated.ts  # concepts.mdから自動生成（編集しない）
 │  ├─ context/
 │  │  ├─ collector.ts           # 選択範囲・周辺コード・言語情報をCodeContextにする
 │  │  └─ diagnostics.ts         # カーソル位置のLSP Diagnosticsを取得する
@@ -35,8 +39,11 @@
 │  └─ ui/
 │     ├─ input.ts               # Hint / Explain、理解度の選択
 │     └─ output.ts              # 回答・エラー・ローディングの表示
+├─ scripts/
+│  └─ gen-concepts.mjs          # concepts.mdの表からConcept一覧を生成する
 ├─ docs/
 │  ├─ idea.md                   # プロダクトの長期構想
+│  ├─ concepts.md               # Concept一覧・習熟度ルール・マイグレーション方針
 │  └─ testing.md                # デモケースと手動テスト手順
 ├─ package.json
 └─ README.md
@@ -44,6 +51,7 @@
 
 ### 責務の境界
 
+- `types/` は他モジュールに依存しないデータ契約だけを置く。VS Code APIをimportしない。
 - `context/` はVS Code / LSPの生データを、AIが扱える構造に変換する。
 - `ai/` はVS CodeのUIを直接扱わず、`TutorRequest`を受けて`TutorResponse`を返す。
 - `learning/` は回答の前後に生じる学習イベントだけをローカル保存する。
@@ -52,11 +60,16 @@
 
 `TutorRequest` / `TutorResponse` は `src/ai/provider.ts` に集約し、AI担当とVS Code担当の共有契約とする。
 
+Learner Profile / Concept / 学習イベントの型は `src/types/profile.ts` に集約する。Concept一覧と習熟度の更新ルール、スキーマのマイグレーション方針は `docs/concepts.md` が正典とする。
+
+Concept一覧そのものは `src/types/concepts.md` を正典とし、生成物 `src/types/concepts.generated.ts` の隣に置く。表を編集したら `npm run gen:concepts` を実行する。命名規則・追加手順・習熟度ルールは `docs/concepts.md` にある。
+
 ## 開発
 
 ```bash
 npm install
 npm run compile
+npm run check:concepts   # Concept一覧と生成物が一致しているか検査する
 ```
 
 VS Codeでこのフォルダを開き、`F5` でExtension Development Hostを起動します。
