@@ -2,10 +2,10 @@
 
 このドキュメントは Learner Profile に関する**契約**である。
 命名規則・追加手順・習熟度の更新ルール・マイグレーション方針についてはこのドキュメントが
-正典であり、コードはこれに従う。型定義は `src/types/profile.ts` にある。
+正典であり、コードはこれに従う。型定義は `packages/domain/src/profile.ts` にある。
 
-Concept 一覧そのものはこのドキュメントには置かず、`src/types/concepts.md` を正典とする。
-一覧は実行時にも必要なため、その表から `src/types/concepts.generated.ts` を機械的に
+Concept 一覧そのものはこのドキュメントには置かず、`packages/domain/concepts.md` を正典とする。
+一覧は実行時にも必要なため、その表から `packages/domain/src/concepts.generated.ts` を機械的に
 書き出す。生成物は新しい情報を持たず、表と同じ内容を import できる形にしたものである。
 
 ```bash
@@ -25,7 +25,7 @@ go.slice_append
 ts.type_narrowing
 ```
 
-形式は `^[a-z0-9]+\.[a-z0-9_]+$`（`src/types/profile.ts` の `CONCEPT_ID_PATTERN`）。
+形式は `^[a-z0-9]+\.[a-z0-9_]+$`（`packages/domain/src/profile.ts` の `CONCEPT_ID_PATTERN`）。
 
 ### 言語をフィールドではなく ID に含める理由
 
@@ -72,8 +72,8 @@ roadmap.sh（`nilbuild/developer-roadmap`）の Go ロードマップは、各�
 
 ## Go の Concept 一覧
 
-一覧の正典は **[`src/types/concepts.md`](../src/types/concepts.md)** にある。
-生成物 `src/types/concepts.generated.ts` の隣に置き、
+一覧の正典は **[`packages/domain/concepts.md`](../packages/domain/concepts.md)** にある。
+生成物 `packages/domain/src/concepts.generated.ts` の隣に置き、
 生成の入力と出力を並べて確認できるようにしている。
 
 MVP の対象は Go のみで、20件を手で定義している。
@@ -86,24 +86,24 @@ MVP の対象は Go のみで、20件を手で定義している。
 1. **既存の一覧を確認する。** 表記違いの重複（`go.slice` と `go.slice_basics` など）は
    後から名寄せが必要になるため、近い ID がすでにないかを必ず見る。
 2. **ID を決める。** `^[a-z0-9]+\.[a-z0-9_]+$` を満たすこと。単数形・スネークケースに揃える。
-3. **`src/types/concepts.md` の表に行を追加する。** 前提となる Concept があれば
+3. **`packages/domain/concepts.md` の表に行を追加する。** 前提となる Concept があれば
    `prerequisites` 列に書く。
    前提は既存 ID のみを指し、循環してはならない。
 4. **`source` は `manual` になる。** 表に `source` 列はなく、
-   `scripts/gen-concepts.mjs` が全件を `{ kind: "manual" }` として書き出す。
+   `packages/domain/scripts/gen-concepts.mjs` が全件を `{ kind: "manual" }` として書き出す。
    MVP では Concept をすべて手で定義するためである。
    roadmap.sh や教材由来の Concept を登録するには、テーブルに `source` 列を足し、
    生成スクリプトのパーサを合わせて変更する必要がある。型（`ConceptSource`）は
    その日のために先に用意してあるが、**入口はまだ開いていない。**
 5. **`npm run gen:concepts` を実行する。** 生成物を表と同時にコミットする。
-6. **PR を出す。** Concept の追加で人が編集するのは `src/types/concepts.md` だけであり、
-   `src/types/profile.ts` もこのドキュメントも変更不要
+6. **PR を出す。** Concept の追加で人が編集するのは `packages/domain/concepts.md` だけであり、
+   `packages/domain/src/profile.ts` もこのドキュメントも変更不要
    （`ConceptId` が `string` であるため）。
 
 `ConceptId` を literal union にしないのはこの手順のためである。union にすると
 Concept を1つ足すたびに型ファイルが変更され、並行して動いている他の実装 PR と衝突する。
 
-`src/types/concepts.generated.ts` を直接編集してはならない。次の生成で失われる。
+`packages/domain/src/concepts.generated.ts` を直接編集してはならない。次の生成で失われる。
 
 ---
 
@@ -172,7 +172,7 @@ Concept を1つ足すたびに型ファイルが変更され、並行して動�
 ### status と score を矛盾させない
 
 加減したあと、`score` を status ごとの範囲へクランプする
-（`src/types/profile.ts` の `MASTERY_SCORE_RANGE`）。
+（`packages/domain/src/profile.ts` の `MASTERY_SCORE_RANGE`）。
 
 | status       | score の範囲 |
 | ------------ | ------------ |
@@ -217,7 +217,7 @@ globalState は値を JSON として直列化する。そのため `LearnerProfi
 
 ## マイグレーション方針
 
-`LearnerProfile.version` は `src/types/profile.ts` の `LEARNER_PROFILE_VERSION` に
+`LearnerProfile.version` は `packages/domain/src/profile.ts` の `LEARNER_PROFILE_VERSION` に
 現在値を持つ。MVP 時点では `1`。
 
 ### version を上げる場合・上げない場合
@@ -250,15 +250,15 @@ version が無い/不正     → 破損とみなし、新規作成する
 
 ### マイグレーション関数の置き場所
 
-`src/learning/migrate.ts` に `migrateV1ToV2` のような形で version ごとに1関数ずつ置く。
+`packages/domain/src/migrate.ts` に `migrateV1ToV2` のような形で version ごとに1関数ずつ置く。
 1つの関数で複数バージョンをまたがない。連鎖適用で任意の古いバージョンから現在値へ上げる。
 
 ---
 
 ## 関連
 
-- 型定義: `src/types/profile.ts`
-- Concept 一覧の正典: `src/types/concepts.md`
-- Concept 一覧の生成物（編集しない）: `src/types/concepts.generated.ts`
-- 生成スクリプト: `scripts/gen-concepts.mjs`
+- 型定義: `packages/domain/src/profile.ts`
+- Concept 一覧の正典: `packages/domain/concepts.md`
+- Concept 一覧の生成物（編集しない）: `packages/domain/src/concepts.generated.ts`
+- 生成スクリプト: `packages/domain/scripts/gen-concepts.mjs`
 - 長期構想: `docs/idea.md`

@@ -1,0 +1,28 @@
+{
+  "name": "@gakushu-sochi/api",
+  "version": "0.0.1",
+  "private": true,
+  "description": "認証、学習イベント同期、Learning Profile、Managed AI を担うAPI Server",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "compile": "tsc -p tsconfig.json",
+    "lint": "eslint src",
+    "test:unit": "vitest run src",
+    "test:watch": "vitest src",
+    "gen:worker-types": "wrangler types src/worker-configuration.d.ts --env-interface CloudflareBindings --include-runtime=false",
+    "check:worker-types": "wrangler types src/worker-configuration.d.ts --env-interface CloudflareBindings --include-runtime=false --check"
+  },
+  "dependencies": {
+    "hono": "^4.13.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.9.1",
+    "eslint-config-prettier": "^10.1.8",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.69.0",
+    "vitest": "^5.0.0",
+    "wrangler": "^4.129.0"
+  }
+}

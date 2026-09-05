@@ -1,0 +1,6 @@
+{
+  "name": "@gakushu-sochi/web",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Learning Map と設定を提供するWeb App"
+}

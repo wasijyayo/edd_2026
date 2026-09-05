@@ -12,5 +12,7 @@ pre-push:
   commands:
     concepts:
       run: npm run check:concepts
+    worker-types:
+      run: npm run check:worker-types
     test:
       run: npm run test

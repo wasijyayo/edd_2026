@@ -11,6 +11,8 @@
   "search.exclude": {
     "out": true
   },
+  // モノレポ内の eslint.config.mjs を持つアプリを作業ディレクトリとして使う。
+  "eslint.workingDirectories": [{ "mode": "auto" }],
   "typescript.tsc.autoDetect": "off",
   // エディタも npm run compile と同じ TypeScript を使う。
   // VS Code 内蔵版との差でエディタにだけエラーが出るのを防ぐ。

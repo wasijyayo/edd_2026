@@ -8,6 +8,8 @@ CLAUDE.md
 
 # Node
 node_modules/
+.wrangler/
+*.cpuprofile
 
 # ビルド成果物
 out/

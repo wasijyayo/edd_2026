@@ -33,5 +33,7 @@ jobs:
         run: npm run compile
       - name: Check generated concepts
         run: npm run check:concepts
+      - name: Check generated Worker types
+        run: npm run check:worker-types
       - name: Run tests
         run: npm run test

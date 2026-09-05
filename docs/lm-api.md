@@ -46,13 +46,13 @@ AIコスト戦略は「ユーザー自身のCopilot契約を使う `vscode.lm` A
 
 型定義（`vscode.LanguageModelError` のJSDoc）から言語化できる範囲。3・4が実機で再現できなかったため、**この節は仕様書からの推測を含む。実機での裏付けが取れ次第更新する。**
 
-| 状況                      | 判定方法                                                                                     | `AIErrorReason`（`src/types/ai.ts`）               |
-| ------------------------- | -------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| モデルが1件も取得できない | `selectChatModels()` が空配列                                                                | `model-unavailable`                                |
-| 同意が得られない          | `sendRequest` が `LanguageModelError`、`code === LanguageModelError.NoPermissions(...).code` | `consent-denied`                                   |
-| レート制限・利用上限      | `sendRequest` が `LanguageModelError`、`code === LanguageModelError.Blocked(...).code`       | `rate-limited`                                     |
-| モデルが消失した          | `sendRequest` が `LanguageModelError`、`code === LanguageModelError.NotFound(...).code`      | `unknown`（現行の `AIErrorReason` に該当項目なし） |
-| その他                    | `LanguageModelError` 以外、または `code` が上記以外                                          | `unknown`                                          |
+| 状況                      | 判定方法                                                                                     | `AIErrorReason`（`apps/vscode-extension/src/ai/types.ts`） |
+| ------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| モデルが1件も取得できない | `selectChatModels()` が空配列                                                                | `model-unavailable`                                        |
+| 同意が得られない          | `sendRequest` が `LanguageModelError`、`code === LanguageModelError.NoPermissions(...).code` | `consent-denied`                                           |
+| レート制限・利用上限      | `sendRequest` が `LanguageModelError`、`code === LanguageModelError.Blocked(...).code`       | `rate-limited`                                             |
+| モデルが消失した          | `sendRequest` が `LanguageModelError`、`code === LanguageModelError.NotFound(...).code`      | `unknown`（現行の `AIErrorReason` に該当項目なし）         |
+| その他                    | `LanguageModelError` 以外、または `code` が上記以外                                          | `unknown`                                                  |
 
 `AIRequest` / `AIResponse` の型自体（#10で確定済み）は、この検証結果と矛盾しない。`AIErrorReason` に `NotFound` 相当の項目を足すかは #11 実装時に判断する。
 
