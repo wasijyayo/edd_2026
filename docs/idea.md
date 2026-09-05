@@ -1,4 +1,4 @@
-# Code Companion
+# Gakushu Sochi
 
 ## 概要
 
@@ -50,7 +50,7 @@ VS Codeのエラー情報を取得し、
 
 ## Personal Learning Map
 
-Code Companionは教材やツールを置き換えない。それぞれを使う中で得られる学習の証拠をつなぎ、
+Gakushu Sochiは教材やツールを置き換えない。それぞれを使う中で得られる学習の証拠をつなぎ、
 本人に合った次の一歩を返す中間レイヤーになる。
 
 ```text
@@ -237,11 +237,11 @@ ProではAI利用量そのものではなく、
 
 を支援し、教材やロードマップは何を学ぶかを示す。
 
-Code Companionは、教材・AI・開発環境を個人に合わせてつなぎ、
+Gakushu Sochiは、教材・AI・開発環境を個人に合わせてつなぎ、
 
 > どうすれば次はAIなしでも理解・解決できるようになるか
 
 を支援する。
 
 Copilotはコードを完成させる。
-Code Companionは、あなたを成長させる。
+Gakushu Sochiは、あなたを成長させる。

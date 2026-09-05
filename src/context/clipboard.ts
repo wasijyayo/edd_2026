@@ -21,7 +21,7 @@ export type ClipboardSelection =
  */
 export async function readTerminalSelection(): Promise<ClipboardSelection> {
   const original = await vscode.env.clipboard.readText();
-  const sentinel = `__code-companion-sentinel-${Date.now()}__`;
+  const sentinel = `__gakushu-sochi-sentinel-${Date.now()}__`;
 
   try {
     await vscode.env.clipboard.writeText(sentinel);

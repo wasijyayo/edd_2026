@@ -1,6 +1,16 @@
-# Code Companion
+# Gakushu Sochi
 
 選択したコードやDiagnosticsをもとに、VS Code内で学習向けのヒントを返す拡張機能です。Hackathonでは、AIがコードを完成させるのではなく、理解度に合わせて「次に試す一手」を返す体験を検証します。
+
+## 識別子
+
+| 項目              | 値                                             |
+| ----------------- | ---------------------------------------------- |
+| package name      | `gakushu-sochi`                                |
+| Extension ID      | `<publisher>.gakushu-sochi`（publisher未決定） |
+| Command ID prefix | `gakushuSochi.`                                |
+| Chat Participant  | `@gakushu-sochi`                               |
+| publisher         | 未決定                                         |
 
 ## Hackathon MVP
 

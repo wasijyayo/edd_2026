@@ -1,6 +1,6 @@
 {
-  "name": "code-companion",
-  "displayName": "Code Companion",
+  "name": "gakushu-sochi",
+  "displayName": "Gakushu Sochi",
   "description": "選択したコードやエラーをその場でAIに質問しながら学べる、学習向けAIコンパニオン",
   "version": "0.0.1",
   "publisher": "TODO-publisher",
@@ -18,41 +18,41 @@
   "contributes": {
     "chatParticipants": [
       {
-        "id": "codeCompanion.chat",
-        "name": "codecompanion",
-        "fullName": "Code Companion",
+        "id": "gakushuSochi.chat",
+        "name": "gakushu-sochi",
+        "fullName": "Gakushu Sochi",
         "description": "選択したコードを学習する"
       }
     ],
     "commands": [
       {
-        "command": "codeCompanion.askSelection",
-        "title": "Code Companion: Ask Selection"
+        "command": "gakushuSochi.askSelection",
+        "title": "Gakushu Sochi: Ask Selection"
       },
       {
-        "command": "codeCompanion.askTerminalSelection",
-        "title": "Code Companion: Ask Terminal Selection"
+        "command": "gakushuSochi.askTerminalSelection",
+        "title": "Gakushu Sochi: Ask Terminal Selection"
       },
       {
-        "command": "codeCompanion.askClipboard",
-        "title": "Code Companion: Ask Clipboard"
+        "command": "gakushuSochi.askClipboard",
+        "title": "Gakushu Sochi: Ask Clipboard"
       }
     ],
     "keybindings": [
       {
-        "command": "codeCompanion.askSelection",
+        "command": "gakushuSochi.askSelection",
         "key": "ctrl+shift+j",
         "mac": "cmd+shift+j",
         "when": "editorTextFocus"
       },
       {
-        "command": "codeCompanion.askTerminalSelection",
+        "command": "gakushuSochi.askTerminalSelection",
         "key": "ctrl+shift+j",
         "mac": "cmd+shift+j",
         "when": "terminalFocus"
       },
       {
-        "command": "codeCompanion.askClipboard",
+        "command": "gakushuSochi.askClipboard",
         "key": "ctrl+alt+j",
         "mac": "cmd+alt+j"
       }
