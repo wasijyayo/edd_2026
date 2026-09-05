@@ -19,7 +19,13 @@ export const LEARNING_PROFILE_RESPONSE_VERSION = 1;
  * 1つの Concept についての読み取りモデル。
  *
  * `ConceptMastery` に表示用の `label` を足したもの。クライアントが Concept 一覧を
- * 別途持たなくても表示できるようにする。
+ * 別途持たなくても表示できるようにする。`evidence` を含めるのは、
+ * docs/architecture.md が Learning Query の責務を「導出済みの Learning Map と根拠を返す」
+ * と定めているためである。
+ *
+ * ただし `extends` である以上、domain の `ConceptMastery` にフィールドを足すと
+ * 自動的に公開 HTTP 契約へ載る。domain 側に外へ出したくない値を追加するときは、
+ * ここで明示的に列挙する形へ切り替える。
  */
 export interface ConceptMasteryView extends ConceptMastery {
   /** 表示名。Concept 一覧に無い ID の場合は `undefined`。 */
