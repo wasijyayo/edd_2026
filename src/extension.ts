@@ -1,7 +1,6 @@
 import * as vscode from "vscode";
-import { readTerminalSelection } from "./context/clipboard";
-
-const PREVIEW_MAX_LENGTH = 500;
+import { readClipboard, readTerminalSelection } from "./context/clipboard";
+import { confirmSend } from "./ui/confirm";
 
 export function activate(context: vscode.ExtensionContext): void {
   const askSelection = vscode.commands.registerCommand("codeCompanion.askSelection", () => {
@@ -35,20 +34,7 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
 
-      // エラー文にはトークンやパスワードが含まれることが実際にある。
-      // 送信前に内容を確認する機会を必ず作る。
-      const preview =
-        result.text.length > PREVIEW_MAX_LENGTH
-          ? `${result.text.slice(0, PREVIEW_MAX_LENGTH)}…`
-          : result.text;
-
-      const answer = await vscode.window.showWarningMessage(
-        "この内容をAIへ送ります。トークンやパスワードが含まれていないか確認してください。",
-        { modal: true, detail: preview },
-        "送る",
-      );
-
-      if (answer !== "送る") {
+      if (!(await confirmSend(result.text))) {
         return;
       }
 
@@ -56,7 +42,27 @@ export function activate(context: vscode.ExtensionContext): void {
     },
   );
 
-  context.subscriptions.push(askSelection, askTerminalSelection);
+  // エディタにもターミナルにも当てはまらない入力元（ブラウザ、他アプリ）向け。
+  // キーバインドは割り当てない。他アプリから戻った直後はフォーカス位置が
+  // 予測できず、askSelection や askTerminalSelection が誤って動くため。
+  const askClipboard = vscode.commands.registerCommand("codeCompanion.askClipboard", async () => {
+    const result = await readClipboard();
+
+    if (!result.ok) {
+      vscode.window.showInformationMessage(
+        "クリップボードが空です。送りたい内容をコピーしてから実行してください。",
+      );
+      return;
+    }
+
+    if (!(await confirmSend(result.text))) {
+      return;
+    }
+
+    console.log(result.text);
+  });
+
+  context.subscriptions.push(askSelection, askTerminalSelection, askClipboard);
 }
 
 export function deactivate(): void {}
