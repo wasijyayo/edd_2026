@@ -60,9 +60,9 @@
 
 `TutorRequest` / `TutorResponse` は `src/ai/provider.ts` に集約し、AI担当とVS Code担当の共有契約とする。
 
-Learner Profile / Concept / 学習イベントの型は `src/types/profile.ts` に集約する。Concept一覧と習熟度の更新ルール、スキーマのマイグレーション方針は `docs/concepts.md` が正典とする。
+Learner Profile / Concept / 学習イベントの型は `src/types/profile.ts` に集約する。命名規則・Concept追加手順・習熟度の更新ルール・スキーマのマイグレーション方針は `docs/concepts.md` が正典とする。
 
-Concept一覧そのものは `src/types/concepts.md` を正典とし、生成物 `src/types/concepts.generated.ts` の隣に置く。表を編集したら `npm run gen:concepts` を実行する。命名規則・追加手順・習熟度ルールは `docs/concepts.md` にある。
+Concept一覧そのものは `src/types/concepts.md` を正典とし、生成物 `src/types/concepts.generated.ts` の隣に置く。表を編集したら `npm run gen:concepts` を実行する。
 
 ## 開発
 

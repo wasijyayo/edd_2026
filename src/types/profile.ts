@@ -47,7 +47,7 @@ export interface ConceptSource {
   url?: string;
 }
 
-/** 学習概念の定義。docs/concepts.md が正典で、この型はその表現形式。 */
+/** 学習概念の定義。一覧の正典は src/types/concepts.md で、この型はその表現形式。 */
 export interface Concept {
   id: ConceptId;
   /** 表示名。例: `ポインタレシーバ` */
@@ -58,7 +58,7 @@ export interface Concept {
   summary?: string;
   /**
    * 前提となる Concept。Skill Tree の辺にあたる。
-   * MVP では自動生成せず docs/concepts.md で手で定義する。
+   * MVP では自動生成せず src/types/concepts.md の表で手で定義する。
    */
   prerequisites?: ConceptId[];
   source: ConceptSource;

@@ -15,15 +15,22 @@ const SOURCE = "src/types/concepts.md";
 const TARGET = "src/types/concepts.generated.ts";
 const CONCEPT_ID_PATTERN = /^[a-z0-9]+\.[a-z0-9_]+$/;
 
-/** concepts.md の一覧テーブルから1行ずつ Concept を読む。 */
+/**
+ * concepts.md の一覧テーブルから1行ずつ Concept を読む。
+ *
+ * ID と前提 ID はバッククォートで囲まれていれば形式を問わず拾う。
+ * ここで妥当な形式だけに絞ると、`go.pointer-receiver` のような書き間違いが
+ * 行ごと（前提なら値ごと）黙って消え、検証を素通りして生成が成功してしまう。
+ * 妥当性の判断は validate() に一本化する。
+ */
 function parseConcepts(markdown) {
-  const rows = [...markdown.matchAll(/^\|\s*`([a-z0-9]+\.[a-z0-9_]+)`\s*\|([^|]*)\|([^|]*)\|/gm)];
+  const rows = [...markdown.matchAll(/^\|\s*`([^`|]*)`\s*\|([^|]*)\|([^|]*)\|/gm)];
   return rows.map(([, id, label, prerequisites]) => ({
-    id,
+    id: id.trim(),
     // 表示名は UI にそのまま出す。md のインラインコード記法は表示上の装飾なので剥がす。
     label: label.replaceAll("`", "").trim(),
-    language: id.split(".")[0],
-    prerequisites: [...prerequisites.matchAll(/`([a-z0-9]+\.[a-z0-9_]+)`/g)].map((m) => m[1]),
+    language: id.trim().split(".")[0],
+    prerequisites: [...prerequisites.matchAll(/`([^`|]*)`/g)].map((m) => m[1].trim()),
     source: { kind: "manual" },
   }));
 }
@@ -57,7 +64,9 @@ function validate(concepts) {
   const known = new Set(ids);
   for (const c of concepts) {
     for (const p of c.prerequisites) {
-      if (!known.has(p)) {
+      if (!CONCEPT_ID_PATTERN.test(p)) {
+        errors.push(`前提の命名規則違反: ${c.id} -> ${p}`);
+      } else if (!known.has(p)) {
         errors.push(`未定義の前提を参照している: ${c.id} -> ${p}`);
       }
     }
@@ -109,7 +118,7 @@ function render(concepts) {
     "",
     'import type { Concept, ConceptId } from "./profile";',
     "",
-    "/** docs/concepts.md で定義された Concept の一覧。定義順は学習の推奨順を兼ねる。 */",
+    `/** ${SOURCE} で定義された Concept の一覧。定義順は学習の推奨順を兼ねる。 */`,
     "export const CONCEPTS: readonly Concept[] = [",
     entries,
     "];",

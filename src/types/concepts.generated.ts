@@ -3,7 +3,7 @@
 
 import type { Concept, ConceptId } from "./profile";
 
-/** docs/concepts.md で定義された Concept の一覧。定義順は学習の推奨順を兼ねる。 */
+/** src/types/concepts.md で定義された Concept の一覧。定義順は学習の推奨順を兼ねる。 */
 export const CONCEPTS: readonly Concept[] = [
   {
     id: "go.variable_declaration",
