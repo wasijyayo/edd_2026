@@ -29,8 +29,31 @@ export type ContextLevel =
   | 1
   /** エディタ選択。コード + 前後 + languageId + ファイル名。 */
   | 2
-  /** エディタ選択 + 言語サーバーあり。Lv2 に加えて別ファイルの定義を含む。 */
+  /**
+   * エディタ選択 + 言語サーバーあり。Lv2 に加えて {@link CodeContext.definitions} を含む。
+   *
+   * 拡張のインストール状態ではなく、実際に言語機能を呼んだ結果で判定する。
+   * 拡張が入っていても言語サーバーの起動前は結果が返らないため。
+   */
   | 3;
+
+/**
+ * 選択範囲の外にある定義。
+ *
+ * Lv3 の「別ファイルの定義」を運ぶ。選択範囲だけでは判断できず、かつ
+ * surroundingCode（同一ファイルの前後）にも入らないものがここに入る。
+ * 例: 別ファイルで定義された型・関数の宣言。
+ */
+export interface ExternalDefinition {
+  /** 定義があるファイル名。 */
+  fileName: string;
+  /** 定義のコード。宣言行とその周辺のみで、ファイル全体は含めない。 */
+  code: string;
+  /** 定義の開始行（0 始まり）。 */
+  startLine: number;
+  /** 参照元となった識別子。どの語を辿って得た定義かを示す。 */
+  symbol?: string;
+}
 
 /**
  * AI へ渡すコード文脈。
@@ -60,4 +83,12 @@ export interface CodeContext {
   startLine?: number;
   /** 選択範囲の終了行（0 始まり）。Lv1 では取得できない。 */
   endLine?: number;
+  /**
+   * 選択範囲の外にある定義。Lv3 でのみ入る。
+   *
+   * contextLevel の 3 と 2 を分けるのはこのフィールドの有無である。
+   * これを持たない Lv3 は Lv2 と同じ情報しか運んでおらず、
+   * プロンプト側（AI/03 #12）が Lv3 として扱う根拠を持てない。
+   */
+  definitions?: ExternalDefinition[];
 }

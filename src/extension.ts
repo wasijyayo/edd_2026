@@ -1,9 +1,10 @@
 import * as vscode from "vscode";
 import { readClipboard, readTerminalSelection } from "./context/clipboard";
+import { collectFromEditor, collectFromText } from "./context/collector";
 import { confirmSend } from "./ui/confirm";
 
 export function activate(context: vscode.ExtensionContext): void {
-  const askSelection = vscode.commands.registerCommand("codeCompanion.askSelection", () => {
+  const askSelection = vscode.commands.registerCommand("codeCompanion.askSelection", async () => {
     const editor = vscode.window.activeTextEditor;
 
     // エディタが開いていない状態でコマンドパレットから実行された場合。
@@ -19,9 +20,9 @@ export function activate(context: vscode.ExtensionContext): void {
       return;
     }
 
-    const selectedText = editor.document.getText(selection);
+    const context = await collectFromEditor(editor);
 
-    console.log(selectedText);
+    console.log(context);
   });
 
   const askTerminalSelection = vscode.commands.registerCommand(
@@ -38,7 +39,9 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
 
-      console.log(result.text);
+      // ターミナル経由は内容しか運ばれてこないため Lv1 になる。
+      // source はこのコマンドから呼ばれたという事実で確定させる。推測はしない。
+      console.log(collectFromText(result.text, "terminal"));
     },
   );
 
@@ -59,7 +62,9 @@ export function activate(context: vscode.ExtensionContext): void {
       return;
     }
 
-    console.log(result.text);
+    // クリップボードは内容しか運ばず出所の情報を持たない。
+    // このコマンドから呼ばれたという事実だけが source の根拠になる。
+    console.log(collectFromText(result.text, "clipboard"));
   });
 
   context.subscriptions.push(askSelection, askTerminalSelection, askClipboard);
