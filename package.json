@@ -16,6 +16,14 @@
   "main": "./out/extension.js",
   "activationEvents": [],
   "contributes": {
+    "chatParticipants": [
+      {
+        "id": "codeCompanion.chat",
+        "name": "codecompanion",
+        "fullName": "Code Companion",
+        "description": "選択したコードを学習する"
+      }
+    ],
     "commands": [
       {
         "command": "codeCompanion.askSelection",
