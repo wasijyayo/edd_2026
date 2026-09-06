@@ -3,11 +3,12 @@ import { expect, test, vi } from "vitest";
 vi.mock("vscode", () => ({}));
 
 import { createEmptyProfile, type LearnerProfile } from "@gakushu-sochi/domain";
-import { loadProfile } from "../learning/store";
+import { getOrCreateClientId, loadProfile } from "../learning/store";
 import type * as vscode from "vscode";
 
 const CURRENT_KEY = "gakushuSochi.learnerProfile";
 const LEGACY_KEY = "codeCompanion.learnerProfile";
+const CLIENT_ID_KEY = "gakushuSochi.clientId";
 
 /** globalState だけを持つ最小の ExtensionContext を組む。 */
 function contextWith(values: Record<string, unknown>): vscode.ExtensionContext {
@@ -162,4 +163,43 @@ test("新しいキーが壊れていて旧キーが正常なら旧キーを使�
   );
 
   expect(loaded.mastery["go.defer"]).toBeDefined();
+});
+
+/** get/update の両方を持つ、書き込み可能な globalState を組む。 */
+function mutableContext(initial: Record<string, unknown> = {}): vscode.ExtensionContext {
+  const store: Record<string, unknown> = { ...initial };
+  return {
+    globalState: {
+      get: (key: string) => store[key],
+      update: async (key: string, value: unknown) => {
+        store[key] = value;
+      },
+    },
+  } as unknown as vscode.ExtensionContext;
+}
+
+test("clientIdが無ければ新しく作って保存する", async () => {
+  const context = mutableContext();
+
+  const clientId = await getOrCreateClientId(context);
+
+  expect(clientId.length).toBeGreaterThan(0);
+  expect(context.globalState.get(CLIENT_ID_KEY)).toBe(clientId);
+});
+
+test("既にあるclientIdを使い続ける", async () => {
+  const context = mutableContext({ [CLIENT_ID_KEY]: "existing-client-id" });
+
+  const clientId = await getOrCreateClientId(context);
+
+  expect(clientId).toBe("existing-client-id");
+});
+
+test("2回呼んでも同じclientIdを返す", async () => {
+  const context = mutableContext();
+
+  const first = await getOrCreateClientId(context);
+  const second = await getOrCreateClientId(context);
+
+  expect(second).toBe(first);
 });

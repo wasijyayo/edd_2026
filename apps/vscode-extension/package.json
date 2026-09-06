@@ -56,7 +56,22 @@
         "key": "ctrl+alt+j",
         "mac": "cmd+alt+j"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Gakushu Sochi",
+      "properties": {
+        "gakushuSochi.api.baseUrl": {
+          "type": "string",
+          "default": "https://gakushu-sochi-api.meganekaitai.workers.dev",
+          "description": "学習イベントを同期するAPIサーバーのURL。空にすると同期を行わずローカル保存のみになる。"
+        },
+        "gakushuSochi.api.token": {
+          "type": "string",
+          "default": "",
+          "description": "APIサーバーの認証トークン（Authorization: Bearerに使う）。OAuth未実装のため、開発用トークンで暫定運用中（apps/api/README.md）。"
+        }
+      }
+    }
   },
   "scripts": {
     "compile": "tsc -p ./",

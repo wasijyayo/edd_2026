@@ -9,7 +9,8 @@ import { PendingChatContext } from "./chat/pending-context";
 import { createChatAIRequest } from "./chat/request";
 import { readClipboard, readTerminalSelection } from "./context/clipboard";
 import { collectFromEditor, collectFromText } from "./context/collector";
-import { loadProfile, recordEvent } from "./learning/store";
+import { getOrCreateClientId, loadProfile, recordEvent } from "./learning/store";
+import { syncEvent } from "./learning/sync";
 import { confirmSend } from "./ui/confirm";
 
 /**
@@ -67,7 +68,8 @@ export function activate(context: vscode.ExtensionContext): void {
   channel.appendLine("Gakushu Sochi がアクティブになりました。");
   const pendingChatContext = new PendingChatContext();
   // ユーザー自身の Copilot 契約を使って回答を生成する。
-  const provider: AIProvider = new VSCodeLMProvider();
+  // onDebug: Concept抽出（AI/03 #12）の切り分け用。モデルの生の応答を出力チャンネルへ流す。
+  const provider: AIProvider = new VSCodeLMProvider((message) => channel.appendLine(message));
 
   // MVP/02 (#23): 学習フィードバックをローカル保存する。
   // メモリ上に持ち、イベントのたびに globalState へ反映する
@@ -80,6 +82,30 @@ export function activate(context: vscode.ExtensionContext): void {
       channel.appendLine(`LearnerProfile の保存に失敗しました: ${String(error)}`);
     });
     channel.appendLine(`--- LearningEvent ---\n${JSON.stringify(event, null, 2)}`);
+
+    // Issue #56: ローカル保存（globalState）に加えて、サーバー側の正本（D1）へも
+    // 送る。同期の失敗は、ローカル保存の失敗と同じくログに残すだけで質問フローは
+    // 止めない。
+    const config = vscode.workspace.getConfiguration("gakushuSochi");
+    const apiBaseUrl = config.get<string>("api.baseUrl", "");
+    if (!apiBaseUrl) {
+      return;
+    }
+
+    const clientId = await getOrCreateClientId(context);
+    const outcome = await syncEvent(event, {
+      apiBaseUrl,
+      apiToken: config.get<string>("api.token", ""),
+      clientId,
+    });
+
+    if (!outcome.ok) {
+      channel.appendLine(`クラウド同期に失敗しました: ${outcome.reason}`);
+      return;
+    }
+    channel.appendLine(
+      `クラウド同期: ${outcome.status}${outcome.reason ? `（${outcome.reason}）` : ""}`,
+    );
   }
 
   /** 文脈を保持して、最初の質問を入力済みの Gakushu Sochi Chat を開く。 */
