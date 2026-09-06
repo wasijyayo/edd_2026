@@ -23,6 +23,7 @@ import { captureSelection } from "./selection.js";
 import { DEFAULT_SETTINGS, normalizeSettings, type DesktopSettings } from "./settings.js";
 import { parseOpenAIStream } from "./stream.js";
 import { normalizeQuestion } from "./question.js";
+import { shouldShowStartupWindow } from "./startup.js";
 
 const execFileAsync = promisify(execFile);
 const SERVICE_NAME = "Gakushu Sochi";
@@ -318,6 +319,7 @@ app
     ipcMain.handle("system:accessibility", async () => {
       await openAccessibilitySettings();
     });
+    if (shouldShowStartupWindow(app.isPackaged)) showPopup("");
   })
   .catch((error) => {
     console.error("アプリの初期化に失敗しました", error);
