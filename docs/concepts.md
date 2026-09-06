@@ -236,6 +236,11 @@ ID によるタイブレークが無いと、同じイベント集合でも入�
 | キー | `gakushuSochi.learnerProfile` |
 | 値   | `LearnerProfile`              |
 
+実装は旧キー `codeCompanion.learnerProfile` も読む。プロダクト名を変更する前に
+保存された学習履歴は再取得できないため、キーの変更だけで読めなくする扱いにしない。
+新しいキーが空のときに限り読み替え、次の保存で新しいキーへ移る。
+旧キーの値は消さない（移行に失敗した場合の退避先として残す）。
+
 Learner Profile はプロジェクトではなく人に紐づくため、`workspaceState` ではなく
 `globalState` を使う。別端末との同期は行わない（同期は Pro の Cloud Sync 段階の課題）。
 

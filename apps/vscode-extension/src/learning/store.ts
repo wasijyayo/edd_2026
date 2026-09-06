@@ -16,7 +16,18 @@ import {
 } from "@gakushu-sochi/domain";
 
 /** globalState 上のキー。docs/concepts.md の「保存」を参照。 */
-const PROFILE_KEY = "codeCompanion.learnerProfile";
+const PROFILE_KEY = "gakushuSochi.learnerProfile";
+
+/**
+ * 旧キー。プロダクト名を変更する前に使っていた。
+ *
+ * 既に保存されている利用者の学習履歴は再取得できないため、キーを変えただけで
+ * 読めなくなる状態にしない。docs/concepts.md の「古いデータを黙って捨てない」に従い、
+ * 新しいキーが空のときに限り読み替えて引き継ぐ。
+ *
+ * 旧キーの値は消さない。移行に失敗した場合の退避先として残す。
+ */
+const LEGACY_PROFILE_KEY = "codeCompanion.learnerProfile";
 
 /**
  * 保存値が現在の LEARNER_PROFILE_VERSION と一致する LearnerProfile かを検査する。
@@ -35,12 +46,23 @@ function isCurrentVersionProfile(value: unknown): value is LearnerProfile {
   );
 }
 
-/** globalState から LearnerProfile を読み込む。無い・壊れている場合は空のプロファイルを返す。 */
+/**
+ * globalState から LearnerProfile を読み込む。無い・壊れている場合は空のプロファイルを返す。
+ *
+ * 新しいキーに値が無ければ旧キーを見る。読めたものは呼び出し側が保存した時点で
+ * 新しいキーへ移る（`recordEvent` は常に新しいキーへ書く）ため、ここでは
+ * 書き戻しをしない。読み込みだけで globalState を更新すると、VS Code の起動直後に
+ * 副作用が走り、失敗したときに握りつぶすか起動を止めるかの二択になる。
+ */
 export function loadProfile(context: vscode.ExtensionContext): LearnerProfile {
   const stored = context.globalState.get<unknown>(PROFILE_KEY);
-
   if (isCurrentVersionProfile(stored)) {
     return stored;
+  }
+
+  const legacy = context.globalState.get<unknown>(LEGACY_PROFILE_KEY);
+  if (isCurrentVersionProfile(legacy)) {
+    return legacy;
   }
 
   return createEmptyProfile(new Date().toISOString());
