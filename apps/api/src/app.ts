@@ -6,6 +6,7 @@ import { rateLimit } from "./auth/rate-limit.js";
 import { D1IdentityRepository, D1LearningEventRepository } from "./repository/d1.js";
 import { createLearningEventsRoute } from "./routes/learning-events.js";
 import { createLearningProfileRoute } from "./routes/learning-profile.js";
+import { createAiRoute } from "./routes/ai.js";
 
 /** Cloudflare Worker から提供する HTTP API。 */
 export const app = new Hono<{ Bindings: CloudflareBindings; Variables: AuthVariables }>();
@@ -64,6 +65,15 @@ app.use(
 app.use(
   "/v1/learning-profile",
   rateLimit((env) => env.PROFILE_RATE_LIMITER),
+);
+
+app.route(
+  "/v1",
+  createAiRoute((env) => ({
+    apiKey: env.GEMINI_API_KEY,
+    model: env.GEMINI_MODEL,
+    fetch,
+  })),
 );
 
 /**

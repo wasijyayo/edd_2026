@@ -10,7 +10,7 @@ macOS のメニューバー、Windows のタスクトレイに常駐し、任意
 npm run start --workspace=@gakushu-sochi/desktop
 ```
 
-初回起動後、「設定」から OpenAI API キー、モデル、ショートカットを設定してください。API キーは macOS Keychain / Windows Credential Manager に保存し、本文・質問は永続化しません。
+初回起動後、「設定」から API URL（ローカル開発は `http://localhost:8787`）、API トークン、モデル、ショートカットを設定してください。API トークンは macOS Keychain / Windows Credential Manager に保存し、本文・質問は永続化しません。AI のプロバイダキー（Gemini）は API Server 側だけに置きます。
 
 ## 使い方
 

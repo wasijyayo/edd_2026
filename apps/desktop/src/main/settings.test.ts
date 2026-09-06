@@ -9,6 +9,7 @@ describe("normalizeSettings", () => {
 
   it("keeps valid user settings", () => {
     const settings: DesktopSettings = {
+      apiBaseUrl: "https://api.example.com",
       shortcut: "CommandOrControl+Shift+K",
       model: "gpt-4.1-mini",
       temperature: 0.2,
@@ -23,6 +24,7 @@ describe("normalizeSettings", () => {
   it("rejects malformed or unsafe persisted values", () => {
     expect(
       normalizeSettings({
+        apiBaseUrl: "",
         shortcut: "",
         model: "",
         temperature: 10,

@@ -68,8 +68,8 @@ async function openAccessibilitySettings(): Promise<void> {
   await execFileAsync("/usr/bin/open", ["-a", "System Settings", ACCESSIBILITY_SETTINGS_URL]);
 }
 
-function apiKeyStore() {
-  const filePath = path.join(app.getPath("userData"), "api-key.enc");
+function credentialStore(fileName: string) {
+  const filePath = path.join(app.getPath("userData"), fileName);
   return createCredentialStore(
     {
       isAvailable: () => safeStorage.isEncryptionAvailable(),
@@ -81,6 +81,10 @@ function apiKeyStore() {
       write: (value) => writeFileSync(filePath, value, { encoding: "utf8", mode: 0o600 }),
     },
   );
+}
+
+function apiTokenStore() {
+  return credentialStore("api-token.enc");
 }
 
 async function loadSettings(): Promise<void> {
@@ -232,27 +236,21 @@ function createTray(): void {
   });
 }
 
-async function askOpenAI(
+async function askManagedAI(
   selection: string,
   question: string,
   onDelta: (text: string) => void,
 ): Promise<void> {
-  const apiKey = apiKeyStore().get();
-  if (!apiKey) throw new Error("OpenAI API キーが未設定です。設定で入力してください。");
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  const apiToken = apiTokenStore().get();
+  if (!apiToken) throw new Error("API トークンが未設定です。設定で入力してください。");
+  const response = await fetch(`${settings.apiBaseUrl.replace(/\/$/, "")}/v1/ai/responses`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: settings.model,
-      stream: true,
-      temperature: settings.temperature,
-      max_tokens: settings.maxTokens,
-      messages: [{ role: "user", content: `選択テキスト:\n${selection}\n\n質問:\n${question}` }],
-    }),
+    headers: { Authorization: `Bearer ${apiToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ selection, question }),
   });
   if (!response.ok || !response.body)
     throw new Error(
-      `AI サービスへの接続に失敗しました (${response.status})。API キーとネットワークを確認してください。`,
+      `API サービスへの接続に失敗しました (${response.status})。API URL・トークンとネットワークを確認してください。`,
     );
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -286,30 +284,33 @@ app
     registerShortcut(settings.shortcut);
     ipcMain.handle("settings:get", async () => ({
       ...settings,
-      hasApiKey: Boolean(apiKeyStore().get()),
+      hasApiToken: Boolean(apiTokenStore().get()),
     }));
-    ipcMain.handle("settings:save", async (_event, next: DesktopSettings & { apiKey?: string }) => {
-      const { apiKey, ...candidate } = next;
-      const valid = normalizeSettings(candidate);
-      if (
-        JSON.stringify(valid) === JSON.stringify(DEFAULT_SETTINGS) &&
-        JSON.stringify(candidate) !== JSON.stringify(DEFAULT_SETTINGS)
-      )
-        throw new Error("設定値が不正です。");
-      try {
-        registerShortcut(valid.shortcut);
-      } catch (error) {
-        registerShortcut(settings.shortcut);
-        throw error;
-      }
-      await saveSettings(valid);
-      if (apiKey) apiKeyStore().set(apiKey);
-    });
+    ipcMain.handle(
+      "settings:save",
+      async (_event, next: DesktopSettings & { apiToken?: string }) => {
+        const { apiToken, ...candidate } = next;
+        const valid = normalizeSettings(candidate);
+        if (
+          JSON.stringify(valid) === JSON.stringify(DEFAULT_SETTINGS) &&
+          JSON.stringify(candidate) !== JSON.stringify(DEFAULT_SETTINGS)
+        )
+          throw new Error("設定値が不正です。");
+        try {
+          registerShortcut(valid.shortcut);
+        } catch (error) {
+          registerShortcut(settings.shortcut);
+          throw error;
+        }
+        await saveSettings(valid);
+        if (apiToken) apiTokenStore().set(apiToken);
+      },
+    );
     ipcMain.handle("selection:retry", openForSelection);
     ipcMain.handle("answer:ask", async (event, selection: string, question: string) => {
       if (!selection.trim() || !question.trim())
         throw new Error("選択テキストと質問を入力してください。");
-      await askOpenAI(selection, question, (delta) => event.sender.send("answer:delta", delta));
+      await askManagedAI(selection, question, (delta) => event.sender.send("answer:delta", delta));
     });
     ipcMain.handle("window:close", () => popup?.hide());
     ipcMain.handle("system:accessibility", async () => {

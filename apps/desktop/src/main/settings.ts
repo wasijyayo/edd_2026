@@ -1,4 +1,5 @@
 export interface DesktopSettings {
+  apiBaseUrl: string;
   shortcut: string;
   model: string;
   temperature: number;
@@ -8,6 +9,7 @@ export interface DesktopSettings {
 }
 
 export const DEFAULT_SETTINGS: DesktopSettings = {
+  apiBaseUrl: "http://localhost:8787",
   shortcut: "CommandOrControl+Shift+K",
   model: "gpt-4.1-mini",
   temperature: 0.3,
@@ -25,6 +27,8 @@ function isSettings(value: unknown): value is DesktopSettings {
   if (typeof value !== "object" || value === null) return false;
   const settings = value as Record<string, unknown>;
   return (
+    typeof settings.apiBaseUrl === "string" &&
+    settings.apiBaseUrl.startsWith("http") &&
     typeof settings.shortcut === "string" &&
     settings.shortcut.length > 0 &&
     typeof settings.model === "string" &&

@@ -25,13 +25,15 @@
       </section>
       <form id="settings-form" hidden>
         <h2>設定</h2>
-        <label>ショートカット<input id="shortcut" required /></label
+        <label>API URL<input id="api-base-url" type="url" required /></label
         ><label
-          >OpenAI API キー<input
-            id="api-key"
+          >API トークン<input
+            id="api-token"
             type="password"
             autocomplete="off"
-            placeholder="変更時のみ入力" /></label
+            placeholder="変更時のみ入力"
+        /></label>
+        <label>ショートカット<input id="shortcut" required /></label
         ><label>モデル<input id="model" required /></label
         ><label>温度<input id="temperature" type="number" min="0" max="2" step="0.1" /></label
         ><label>最大トークン<input id="max-tokens" type="number" min="1" max="16384" /></label

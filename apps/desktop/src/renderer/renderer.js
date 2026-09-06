@@ -47,8 +47,8 @@ $("send").onclick = async () => {
 };
 $("settings").onclick = async () => {
   const s = await window.desktop.getSettings();
-  ["shortcut", "model", "temperature", "max-tokens"].forEach((id) => {
-    $(id).value = s[id === "max-tokens" ? "maxTokens" : id];
+  ["api-base-url", "shortcut", "model", "temperature", "max-tokens"].forEach((id) => {
+    $(id).value = s[id === "api-base-url" ? "apiBaseUrl" : id === "max-tokens" ? "maxTokens" : id];
   });
   $("restore").checked = s.restoreClipboard;
   $("login").checked = s.launchAtLogin;
@@ -58,8 +58,9 @@ form.onsubmit = async (event) => {
   event.preventDefault();
   try {
     await window.desktop.saveSettings({
+      apiBaseUrl: $("api-base-url").value,
       shortcut: $("shortcut").value,
-      apiKey: $("api-key").value,
+      apiToken: $("api-token").value,
       model: $("model").value,
       temperature: Number($("temperature").value),
       maxTokens: Number($("max-tokens").value),
