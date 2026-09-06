@@ -3,7 +3,7 @@
   "displayName": "Gakushu Sochi",
   "description": "選択したコードやエラーをその場でAIに質問しながら学べる、学習向けAIコンパニオン",
   "version": "0.0.1",
-  "publisher": "TODO-publisher",
+  "publisher": "gakushu-sochi",
   "private": true,
   "license": "UNLICENSED",
   "engines": {
@@ -60,6 +60,7 @@
   },
   "scripts": {
     "compile": "tsc -p ./",
+    "package": "npm run compile && npx @vscode/vsce package --no-dependencies",
     "test:unit": "vitest run src/test",
     "test:watch": "vitest src/test",
     "test": "npm run test:unit",
