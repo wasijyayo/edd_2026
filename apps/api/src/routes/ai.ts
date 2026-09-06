@@ -5,8 +5,10 @@ import type { AuthVariables } from "../auth/middleware.js";
 
 const requestSchema = v.object({
   selection: v.pipe(v.string(), v.minLength(1), v.maxLength(20_000)),
-  question: v.pipe(v.string(), v.minLength(1), v.maxLength(4_000)),
+  question: v.pipe(v.string(), v.maxLength(4_000)),
 });
+
+const DEFAULT_EXPLANATION_QUESTION = "この選択テキストを初心者にも分かるように解説してください。";
 
 export interface AiDeps {
   apiKey?: string;
@@ -21,6 +23,7 @@ export function createAiRoute(resolve: AiDepsResolver) {
 
   route.post("/ai/responses", vValidator("json", requestSchema), async (c) => {
     const { selection, question } = c.req.valid("json");
+    const normalizedQuestion = question.trim() || DEFAULT_EXPLANATION_QUESTION;
     const deps = resolve(c.env);
     if (!deps.apiKey) return c.json({ error: "AI service is not configured" }, 503);
 
@@ -31,7 +34,9 @@ export function createAiRoute(resolve: AiDepsResolver) {
         method: "POST",
         headers: { "x-goog-api-key": deps.apiKey, "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: `選択テキスト:\n${selection}\n\n質問:\n${question}` }] }],
+          contents: [
+            { parts: [{ text: `選択テキスト:\n${selection}\n\n質問:\n${normalizedQuestion}` }] },
+          ],
         }),
       },
     );

@@ -22,6 +22,7 @@ import { createCredentialStore } from "./credentials.js";
 import { captureSelection } from "./selection.js";
 import { DEFAULT_SETTINGS, normalizeSettings, type DesktopSettings } from "./settings.js";
 import { parseOpenAIStream } from "./stream.js";
+import { normalizeQuestion } from "./question.js";
 
 const execFileAsync = promisify(execFile);
 const SERVICE_NAME = "Gakushu Sochi";
@@ -308,9 +309,10 @@ app
     );
     ipcMain.handle("selection:retry", openForSelection);
     ipcMain.handle("answer:ask", async (event, selection: string, question: string) => {
-      if (!selection.trim() || !question.trim())
-        throw new Error("選択テキストと質問を入力してください。");
-      await askManagedAI(selection, question, (delta) => event.sender.send("answer:delta", delta));
+      if (!selection.trim()) throw new Error("選択テキストを取得できませんでした。");
+      await askManagedAI(selection, normalizeQuestion(question), (delta) =>
+        event.sender.send("answer:delta", delta),
+      );
     });
     ipcMain.handle("window:close", () => popup?.hide());
     ipcMain.handle("system:accessibility", async () => {

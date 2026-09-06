@@ -52,17 +52,44 @@ describe("POST /v1/ai/responses", () => {
     await expect(response.json()).resolves.toEqual({ error: "AI service is not configured" });
   });
 
-  it("選択文または質問が空なら拒否する", async () => {
+  it("選択文が空なら拒否する", async () => {
     const response = await app.request(
       "https://api.example.test/v1/ai/responses",
       {
         method: "POST",
         headers: { Authorization: "Bearer secret", "Content-Type": "application/json" },
-        body: JSON.stringify({ selection: "", question: "" }),
+        body: JSON.stringify({ selection: "", question: "質問" }),
       },
       { DEV_AUTH_TOKEN: "secret", GEMINI_API_KEY: "test-key" },
     );
 
     expect(response.status).toBe(400);
+  });
+
+  it("質問が空なら解説依頼として Gemini に送る", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response("data: [DONE]\n\n", {
+          status: 200,
+          headers: { "content-type": "text/event-stream" },
+        }),
+      ),
+    );
+
+    const response = await app.request(
+      "https://api.example.test/v1/ai/responses",
+      {
+        method: "POST",
+        headers: { Authorization: "Bearer secret", "Content-Type": "application/json" },
+        body: JSON.stringify({ selection: "const answer = 42", question: "   " }),
+      },
+      { DEV_AUTH_TOKEN: "secret", GEMINI_API_KEY: "test-key" },
+    );
+
+    expect(response.status).toBe(200);
+    const [, init] = vi.mocked(fetch).mock.calls[0] ?? [];
+    expect(init?.body).toContain("この選択テキストを初心者にも分かるように解説してください。");
+    vi.unstubAllGlobals();
   });
 });
