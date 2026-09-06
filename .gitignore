@@ -26,3 +26,5 @@ dist/
 .vscode-test/
 
 .vitest/
+
+.DS_Store

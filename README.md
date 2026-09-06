@@ -67,7 +67,9 @@ Concept一覧そのものは `packages/domain/concepts.md` を正典とし、生
 npm install
 npm run compile
 npm run check:concepts   # Concept一覧と生成物が一致しているか検査する
+npm run dev              # API Server と Desktop をまとめて起動する
 ```
 
-VS Codeでリポジトリルートを開き、`F5` でExtension Development Hostを起動します。
+`npm run dev` は API Server と Desktop を並列で起動し、どちらかが失敗するともう一方も停止する。
+VS Code Extension は、VS Codeでリポジトリルートを開いて `F5` でExtension Development Hostを起動します。
 全体方針は [`docs/architecture.md`](docs/architecture.md) を参照する。
