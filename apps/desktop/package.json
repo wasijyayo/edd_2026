@@ -1,0 +1,46 @@
+{
+  "name": "@gakushu-sochi/desktop",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "compile": "tsc -p tsconfig.json",
+    "test:unit": "vitest run",
+    "test": "npm run test:unit",
+    "lint": "eslint src",
+    "start": "npm run compile && electron .",
+    "package": "npm run compile && electron-builder"
+  },
+  "main": "out/main/index.js",
+  "dependencies": {},
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.0.0",
+    "electron": "^44.0.0",
+    "electron-builder": "^26.0.12",
+    "eslint": "^10.9.1",
+    "eslint-config-prettier": "^10.1.8",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.69.0",
+    "vitest": "^5.0.0"
+  },
+  "build": {
+    "appId": "com.gakushusochi.desktop",
+    "productName": "Gakushu Sochi",
+    "files": [
+      "out/**",
+      "src/renderer/**",
+      "package.json"
+    ],
+    "mac": {
+      "target": [
+        "dmg"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    }
+  }
+}
