@@ -160,13 +160,11 @@ export class D1IdentityRepository implements IdentityRepository {
         .bind(userId, nowMs),
       this.db
         .prepare(
-          `INSERT INTO devices (id, user_id, client_id, created_at_ms, last_seen_at_ms)
-           VALUES (?, ?, ?, ?, ?)
+          `INSERT INTO devices (user_id, client_id, created_at_ms, last_seen_at_ms)
+           VALUES (?, ?, ?, ?)
            ON CONFLICT (user_id, client_id) DO UPDATE SET last_seen_at_ms = excluded.last_seen_at_ms`,
         )
-        // 端末の代理キーはユーザーと clientId から決まる。ランダムな ID にすると
-        // ON CONFLICT で既存行へ収束させたときに主キーだけが毎回変わってしまう。
-        .bind(`${userId}:${clientId}`, userId, clientId, nowMs, nowMs),
+        .bind(userId, clientId, nowMs, nowMs),
     ]);
   }
 }

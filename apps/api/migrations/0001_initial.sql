@@ -13,14 +13,21 @@ CREATE TABLE users (
 -- 端末。ユーザーと端末の結びつけは Identity の責務であり、
 -- 独立した学習ドメイン API にはしない（docs/architecture.md）。
 CREATE TABLE devices (
-  id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   -- 同期リクエストのエンベロープが運ぶ clientId。端末の自己申告であり、
   -- 認証済みの user_id とは別物として扱う。
   client_id TEXT NOT NULL,
   created_at_ms INTEGER NOT NULL,
   last_seen_at_ms INTEGER NOT NULL,
-  UNIQUE (user_id, client_id)
+
+  -- 代理キーを持たず、複合主キーにする。
+  --
+  -- `user_id || ':' || client_id` のような連結した代理キーは一意なエンコードでは
+  -- なく、(user_id="a:b", client_id="c") と (user_id="a", client_id="b:c") が
+  -- 同じ値になる。後から同期した端末が主キー制約で弾かれる。
+  -- ランダムな代理キーも使わない。ON CONFLICT で既存行へ収束させる upsert が
+  -- 書けなくなり、SELECT してから分岐する必要が出る。
+  PRIMARY KEY (user_id, client_id)
 );
 
 -- 学習イベント。追記のみで、あとから書き換えない。

@@ -23,6 +23,23 @@
   "secrets": {
     "required": ["DEV_AUTH_TOKEN"],
   },
+  // レート制限。認証済みトークンであっても無制限に叩けないようにする。
+  // period は 10 か 60 のみ。
+  "ratelimits": [
+    {
+      // 同期。1回で最大500件を書けるため、頻度そのものを抑える。
+      "name": "SYNC_RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 60, "period": 60 },
+    },
+    {
+      // Profile は毎回そのユーザーの全イベントを読み直して習熟度を導出するので、
+      // 同期より負荷が高い。上限を厳しくする。
+      "name": "PROFILE_RATE_LIMITER",
+      "namespace_id": "1002",
+      "simple": { "limit": 30, "period": 60 },
+    },
+  ],
   "d1_databases": [
     {
       "binding": "DB",

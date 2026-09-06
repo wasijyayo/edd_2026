@@ -138,7 +138,7 @@ test("イベントを保存する前にユーザーと端末を登録する", as
   await sync({ clientId: "client-1", events: [validEvent("e1")] });
 
   expect(identity.users.has("user-a")).toBe(true);
-  expect(identity.devices.get("user-a:client-1")?.lastSeenAtMs).toBe(1000);
+  expect(identity.getDevice("user-a", "client-1")?.lastSeenAtMs).toBe(1000);
 });
 
 test("空のイベント配列でも成功し、登録は行わない", async () => {

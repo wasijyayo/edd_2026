@@ -115,7 +115,7 @@ test("ユーザーと端末を登録し、既存なら重複させない", async
   await identity.ensureUserAndDevice({ userId: "user-a", clientId: "client-1", nowMs: 200 });
 
   expect(identity.users.size).toBe(1);
-  expect(identity.devices.size).toBe(1);
+  expect(identity.deviceCount).toBe(1);
 });
 
 test("同期のたびに端末の最終同期時刻を更新する", async () => {
@@ -124,7 +124,7 @@ test("同期のたびに端末の最終同期時刻を更新する", async () =>
   await identity.ensureUserAndDevice({ userId: "user-a", clientId: "client-1", nowMs: 100 });
   await identity.ensureUserAndDevice({ userId: "user-a", clientId: "client-1", nowMs: 999 });
 
-  expect(identity.devices.get("user-a:client-1")?.lastSeenAtMs).toBe(999);
+  expect(identity.getDevice("user-a", "client-1")?.lastSeenAtMs).toBe(999);
 });
 
 test("作成時刻は登録し直しても上書きしない", async () => {
@@ -143,5 +143,20 @@ test("同じユーザーの別端末は別の行になる", async () => {
   await identity.ensureUserAndDevice({ userId: "user-a", clientId: "client-2", nowMs: 100 });
 
   expect(identity.users.size).toBe(1);
-  expect(identity.devices.size).toBe(2);
+  expect(identity.deviceCount).toBe(2);
+});
+
+test("IDに区切り文字を含んでも別の端末として扱う", () => {
+  // 連結キーだと (userId="a:b", clientId="c") と (userId="a", clientId="b:c") が
+  // 同じ値になり、後から同期した端末が主キー制約で弾かれる。
+  const identity = new InMemoryIdentityRepository();
+
+  return Promise.all([
+    identity.ensureUserAndDevice({ userId: "a:b", clientId: "c", nowMs: 100 }),
+    identity.ensureUserAndDevice({ userId: "a", clientId: "b:c", nowMs: 100 }),
+  ]).then(() => {
+    expect(identity.deviceCount).toBe(2);
+    expect(identity.getDevice("a:b", "c")).toBeDefined();
+    expect(identity.getDevice("a", "b:c")).toBeDefined();
+  });
 });

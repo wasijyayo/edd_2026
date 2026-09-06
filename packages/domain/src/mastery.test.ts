@@ -7,7 +7,7 @@
  */
 
 import { expect, test } from "vitest";
-import { applyEvent, deriveMasteryFromEvents } from "./mastery.js";
+import { applyEvent, deriveMasteryFromEvents, isIsoDateTime } from "./mastery.js";
 import { createEmptyProfile, type LearningEvent } from "./profile.js";
 
 function event(
@@ -141,5 +141,42 @@ test("occurredAtが解釈できないイベントは握りつぶさず例外に�
 
   // 壊れた時刻を0や NaN へ丸めると、そのイベントが黙って先頭に並び、
   // 汚染された習熟度が正常応答として返ってしまう。同期の受理前に弾けるよう表に出す。
+  expect(() => deriveMasteryFromEvents(events)).toThrow(TypeError);
+});
+
+test("タイムゾーンを持たない日時表記は受け付けない", () => {
+  // Date.parse は通るが、実行環境のタイムゾーンで解釈されるため、
+  // 同じ入力が開発機と Worker で別の時刻になる。
+  for (const value of [
+    "2026-09-05",
+    "2026-09-05T00:00:00",
+    "2026/09/05",
+    "September 5, 2026",
+    "0",
+  ]) {
+    expect(isIsoDateTime(value)).toBe(false);
+  }
+});
+
+test("UTCとオフセット付きの日時表記を受け付ける", () => {
+  for (const value of [
+    "2026-09-05T00:00:00Z",
+    "2026-09-05T00:00:00.000Z",
+    "2026-09-05T09:00:00+09:00",
+    "2026-09-05T00:00:00-05:00",
+  ]) {
+    expect(isIsoDateTime(value)).toBe(true);
+  }
+});
+
+test("存在しない日付は繰り上げて受け付ける", () => {
+  // Date.parse は 2026-02-31 を 3/3 として解釈する。暦の妥当性は検査しない。
+  // 守りたいのは「意図した瞬間が一意に定まること」であり、繰り上げは一意に定まる。
+  expect(isIsoDateTime("2026-02-31T00:00:00Z")).toBe(true);
+});
+
+test("タイムゾーンの無い occurredAt は導出時に例外にする", () => {
+  const events = [event("e1", "2026-09-05T00:00:00", "question_asked")];
+
   expect(() => deriveMasteryFromEvents(events)).toThrow(TypeError);
 });

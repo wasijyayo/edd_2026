@@ -63,7 +63,17 @@ export class InMemoryLearningEventRepository implements LearningEventRepository 
  */
 export class InMemoryIdentityRepository implements IdentityRepository {
   readonly users = new Map<string, { createdAtMs: number }>();
-  readonly devices = new Map<string, { userId: string; clientId: string; lastSeenAtMs: number }>();
+
+  /**
+   * userId -> (clientId -> 端末)。
+   *
+   * `${userId}:${clientId}` のような連結した1つのキーにしない。連結は一意な
+   * エンコードではなく、(userId="a:b", clientId="c") と
+   * (userId="a", clientId="b:c") が同じキーになる。D1 側は複合主キーで
+   * この衝突が起きないため、連結したままだとテスト実装だけが実際と違う
+   * ふるまいをして、DB 制約の問題を見逃す。
+   */
+  private readonly devicesByUser = new Map<string, Map<string, { lastSeenAtMs: number }>>();
 
   ensureUserAndDevice(params: { userId: string; clientId: string; nowMs: number }): Promise<void> {
     const { userId, clientId, nowMs } = params;
@@ -72,14 +82,33 @@ export class InMemoryIdentityRepository implements IdentityRepository {
       this.users.set(userId, { createdAtMs: nowMs });
     }
 
-    const deviceKey = `${userId}:${clientId}`;
-    const existing = this.devices.get(deviceKey);
+    let devices = this.devicesByUser.get(userId);
+    if (devices === undefined) {
+      devices = new Map();
+      this.devicesByUser.set(userId, devices);
+    }
+
+    const existing = devices.get(clientId);
     if (existing === undefined) {
-      this.devices.set(deviceKey, { userId, clientId, lastSeenAtMs: nowMs });
+      devices.set(clientId, { lastSeenAtMs: nowMs });
     } else {
       existing.lastSeenAtMs = nowMs;
     }
 
     return Promise.resolve();
+  }
+
+  /** テストから端末を参照するための補助。 */
+  getDevice(userId: string, clientId: string): { lastSeenAtMs: number } | undefined {
+    return this.devicesByUser.get(userId)?.get(clientId);
+  }
+
+  /** 登録済みの端末の総数。 */
+  get deviceCount(): number {
+    let total = 0;
+    for (const devices of this.devicesByUser.values()) {
+      total += devices.size;
+    }
+    return total;
   }
 }

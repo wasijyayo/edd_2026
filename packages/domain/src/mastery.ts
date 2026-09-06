@@ -218,9 +218,37 @@ interface OrderedEvent {
  * 弾けるよう、失敗を値ではなく例外として表に出す。
  */
 function toEpochMs(occurredAt: string): number {
-  const epochMs = Date.parse(occurredAt);
-  if (Number.isNaN(epochMs)) {
+  if (!isIsoDateTime(occurredAt)) {
     throw new TypeError(`occurredAt is not a valid ISO 8601 date-time: ${occurredAt}`);
   }
-  return epochMs;
+  return Date.parse(occurredAt);
 }
+
+/**
+ * ISO 8601 の date-time であり、UTC またはオフセット付きであることを要求する。
+ *
+ * `Date.parse` の成功だけを条件にしてはならない。`"2026/09/05"` や
+ * `"September 5, 2026"` は解釈できてしまい、しかも**実行環境のタイムゾーンで**
+ * 解釈される。同じ入力が開発機と Worker で別の時刻になり、習熟度の畳み込み順が
+ * 環境によって変わる。
+ *
+ * 同じ理由で、オフセットの無い `"2026-09-05T00:00:00"` や日付のみの
+ * `"2026-09-05"` も受け付けない。前者はローカル時刻として解釈され、後者は
+ * UTC 深夜として解釈されるが、いずれも送信側が意図した瞬間を一意に表さない。
+ */
+export function isIsoDateTime(value: string): boolean {
+  if (!ISO_DATE_TIME_PATTERN.test(value)) {
+    return false;
+  }
+  // 形式が合っていても Date.parse が解釈できない値は弾く。
+  //
+  // ただし `2026-02-31` のような存在しない日付は弾けない。Date.parse は
+  // これを 3/3 へ繰り上げて解釈する。暦の妥当性まで検査しないのは、
+  // ここで守りたいのが「送信側が意図した瞬間が一意に定まること」であり、
+  // 繰り上げは一意に定まるためである。誤った日付を送るのはクライアントの
+  // 不具合であって、この関数の責務ではない。
+  return !Number.isNaN(Date.parse(value));
+}
+
+/** `YYYY-MM-DDTHH:MM:SS[.sss](Z|±HH:MM)`。オフセットは必須。 */
+const ISO_DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;

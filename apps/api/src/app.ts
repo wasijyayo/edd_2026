@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { devAuth, type AuthVariables } from "./auth/middleware.js";
+import { rateLimit } from "./auth/rate-limit.js";
 import { D1IdentityRepository, D1LearningEventRepository } from "./repository/d1.js";
 import { createLearningEventsRoute } from "./routes/learning-events.js";
 import { createLearningProfileRoute } from "./routes/learning-profile.js";
@@ -52,6 +53,18 @@ app.use("/v1/*", (c, next) => {
 });
 
 app.use("/v1/*", devAuth);
+
+// レート制限は認証の後に置く。userId が決まっていないと誰の分として
+// 数えるかが定まらない。エンドポイントごとに上限が違うため、
+// /v1/* へ一括では適用しない。
+app.use(
+  "/v1/learning-events:sync",
+  rateLimit((env) => env.SYNC_RATE_LIMITER),
+);
+app.use(
+  "/v1/learning-profile",
+  rateLimit((env) => env.PROFILE_RATE_LIMITER),
+);
 
 /**
  * Repository の実体を D1 に結び付ける唯一の場所。

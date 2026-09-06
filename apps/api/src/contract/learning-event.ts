@@ -10,7 +10,7 @@
  */
 
 import * as v from "valibot";
-import { CONCEPT_ID_PATTERN, type LearningEvent } from "@gakushu-sochi/domain";
+import { CONCEPT_ID_PATTERN, isIsoDateTime, type LearningEvent } from "@gakushu-sochi/domain";
 
 /**
  * 受け入れるイベント種別。packages/domain の `LearningEventType` と一致させる。
@@ -70,10 +70,9 @@ export const MAX_EVENTS_PER_SYNC = 500;
 const occurredAtSchema = v.pipe(
   v.string(),
   v.minLength(1, "occurredAt is required"),
-  v.check(
-    (value) => !Number.isNaN(Date.parse(value)),
-    "occurredAt must be a parseable ISO 8601 date-time",
-  ),
+  // 検査は packages/domain の isIsoDateTime に委ねる。ここで独自に書くと、
+  // API が受理した値を導出側が拒否する（あるいはその逆の）状態を作りうる。
+  v.check(isIsoDateTime, "occurredAt must be an ISO 8601 date-time with a UTC or numeric offset"),
 );
 
 const conceptIdSchema = v.pipe(
