@@ -72,7 +72,7 @@ app.route(
   createAiRoute((env) => ({
     apiKey: env.GEMINI_API_KEY,
     model: env.GEMINI_MODEL,
-    fetch,
+    fetch: (input, init) => globalThis.fetch(input, init),
   })),
 );
 
