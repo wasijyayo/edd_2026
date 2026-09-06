@@ -3,6 +3,8 @@
   "private": true,
   "version": "0.0.1",
   "type": "module",
+  "description": "選択したテキストをすぐに質問できる常駐型 AI コンパニオン",
+  "author": "Gakushu Sochi contributors",
   "scripts": {
     "compile": "tsc -p tsconfig.json",
     "test:unit": "vitest run",
@@ -16,7 +18,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.0.0",
-    "electron": "^44.0.0",
+    "electron": "44.0.0",
     "electron-builder": "^26.0.12",
     "eslint": "^10.9.1",
     "eslint-config-prettier": "^10.1.8",
