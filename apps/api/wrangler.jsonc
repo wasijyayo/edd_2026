@@ -8,6 +8,18 @@
     "enabled": true,
     "head_sampling_rate": 1,
   },
+  "vars": {
+    "DEV_AUTH_USER_ID": "dev-user",
+  },
+  // 必要な秘密情報の「名前」を宣言する。値はここに書かない
+  // （`wrangler secret put` で設定する。apps/api/README.md）。
+  //
+  // これを書くと wrangler types が .dev.vars ではなくこの宣言から型を作るため、
+  // .dev.vars を持たない CI でも check:worker-types が通る。
+  // デプロイ時には実際に設定済みかどうかも検証される。
+  "secrets": {
+    "required": ["DEV_AUTH_TOKEN"],
+  },
   "d1_databases": [
     {
       "binding": "DB",

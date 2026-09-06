@@ -90,6 +90,12 @@ export class D1LearningEventRepository implements LearningEventRepository {
       ),
     );
 
+    // batch は SQL トランザクションであり、1文でも失敗すると全件がロールバックされる
+    // （ローカル D1 で確認済み: FK 違反を1件混ぜると、同じバッチの正常な行も残らない）。
+    // ここでは想定内の失敗は ON CONFLICT DO NOTHING で吸収され、残る失敗は
+    // 呼び出し前に ensureUserAndDevice を通していない場合の FK 違反のような
+    // 実装の誤りだけになる。部分的に書けた状態を作らないため、その場合は
+    // バッチ全体を失敗させたままにする。
     const results = await this.db.batch(bound);
 
     return inputs.map((input, index) => {

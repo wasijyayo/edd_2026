@@ -131,6 +131,15 @@ export type SyncRequest = v.InferOutput<typeof syncRequestSchema>;
 export type SyncResultStatus = "accepted" | "duplicate" | "rejected";
 
 export interface SyncEventResult {
+  /**
+   * リクエストの `events` 配列における位置。
+   *
+   * ID だけでは対応づけられない。ID 自体が不正で読めなかったイベントは
+   * `id` が `null` になり、クライアントは自分の送信キューのどの項目が
+   * 拒否されたのか分からなくなる。位置を返せば、ID が読めなくても
+   * 送信元を特定して取り除ける。
+   */
+  index: number;
   /** 対象イベントの ID。ID 自体が不正で読めなかった場合は `null`。 */
   id: string | null;
   status: SyncResultStatus;
@@ -139,6 +148,10 @@ export interface SyncEventResult {
 }
 
 export interface SyncResponse {
+  /**
+   * イベントごとの結果。リクエストの `events` と同じ順序・同じ件数で返す。
+   * 各要素の `index` が対応する位置を示す。
+   */
   results: SyncEventResult[];
   /** 件数の内訳。クライアントがログへ残す際に results を数え直さずに済む。 */
   summary: Record<SyncResultStatus, number>;
