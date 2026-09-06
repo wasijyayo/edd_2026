@@ -85,6 +85,22 @@ function toMessages(request: AIRequest): vscode.LanguageModelChatMessage[] {
     lines.push("", "--- 質問 ---", request.question);
   }
 
+  // この言語で定義済みのConceptだけを渡す。渡さないと、モデルは正確なID文字列
+  // （例: go.variable_declaration）を知らないまま「存在しないIDを作るな」という
+  // 指示と板挟みになり、話題が一致していても空配列を返しがちになる
+  // （実機で確認済み: 短縮変数宣言の話をしていたのに、IDを提示していなかったため
+  // conceptIds が空で返ってきた）。languageId が無い（Lv1）場合は絞り込めないため渡さない。
+  const knownConcepts = request.context.languageId
+    ? CONCEPTS.filter((concept) => concept.language === request.context.languageId)
+    : [];
+  if (knownConcepts.length > 0) {
+    lines.push(
+      "",
+      "--- 既知の概念一覧（id: 説明） ---",
+      ...knownConcepts.map((concept) => `${concept.id}: ${concept.label}`),
+    );
+  }
+
   // 本文の下に、ユーザーには見せないメタ情報をJSONで出させる。
   // 学習イベントの記録（MVP/02 #23）が、どのConceptの話か・理解が解消されたかを
   // 判断する材料に使う。会話に表示する内容とは別物なので、通常の説明文の後に
@@ -94,7 +110,9 @@ function toMessages(request: AIRequest): vscode.LanguageModelChatMessage[] {
     "--- 出力形式 ---",
     `本文を書き終えたら、必ず最後に ${META_MARKER} という行を書き、続けてJSONを1つだけ書いてください。`,
     '形式: {"conceptIds": ["関係する概念のID。分からなければ空配列"], "resolution": "resolved か unclear"}',
-    "conceptIds は今回の話題に一致する既知の概念のIDのみを入れてください。存在しないIDを作らないでください。",
+    knownConcepts.length > 0
+      ? "conceptIds には、上記の「既知の概念一覧」に載っているIDの中から今回の話題に一致するものだけを入れてください。一覧に無い概念を無理に当てはめず、一致するものが無ければ空配列にしてください。"
+      : "この言語向けの既知の概念一覧が無いため、conceptIds は空配列にしてください。",
   );
 
   if (hasHistory) {
@@ -196,6 +214,15 @@ function toAIError(error: unknown): AIError {
 export class VSCodeLMProvider implements AIProvider {
   readonly id = "vscode-lm";
 
+  /**
+   * デバッグ用のログ出力。
+   *
+   * Concept抽出（AI/03 #12は本格設計待ちで、現状は既知IDでフィルタする簡易実装）が
+   * 期待通り動いているかは、モデルの生の応答を見ないと切り分けられない。
+   * 未指定なら何も出力しない。
+   */
+  constructor(private readonly onDebug?: (message: string) => void) {}
+
   async ask(request: AIRequest): Promise<AIResponse> {
     try {
       const models = await vscode.lm.selectChatModels();
@@ -226,7 +253,13 @@ export class VSCodeLMProvider implements AIProvider {
         raw += chunk;
       }
 
+      this.onDebug?.(`--- AIの生の応答（model: ${model.id}） ---\n${raw}`);
+
       const parsed = parseAnswer(raw);
+
+      this.onDebug?.(
+        `--- Concept抽出結果 ---\nconceptIds: ${JSON.stringify(parsed.conceptIds)}\nresolution: ${String(parsed.resolution)}`,
+      );
 
       return {
         ok: true,
