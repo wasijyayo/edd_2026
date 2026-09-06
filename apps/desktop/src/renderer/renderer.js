@@ -1,12 +1,73 @@
 const $ = (id) => document.getElementById(id);
 const error = $("error"),
   selection = $("selection"),
+  code = $("code"),
   question = $("question"),
   answer = $("answer"),
   send = $("send"),
+  card = $("card"),
+  cardTitle = $("card-title"),
+  chips = $("chips"),
   form = $("settings-form");
+// 設定シート表示中に inert 化する領域（form 自身は含めない）。
+const backdrop = [$("titlebar"), $("workspace")];
 let isAsking = false;
+
+// Concept 一覧は packages/domain が正典（main の concepts:list 経由）。
+// 習熟度はまだ API から取れないため、全件 "unobserved" で描く。
+// 習熟度が取れるようになったら status をそこから埋める。
+const renderConcepts = (concepts) => {
+  const list = $("concepts");
+  list.replaceChildren(
+    ...concepts.map((concept) => {
+      const item = document.createElement("li");
+      item.className = "concept";
+      item.dataset.status = concept.status ?? "unobserved";
+      const dot = document.createElement("span");
+      dot.className = "dot";
+      const label = document.createElement("span");
+      label.textContent = concept.label;
+      item.append(dot, label);
+      return item;
+    }),
+  );
+};
+
+const loadConcepts = async () => {
+  try {
+    renderConcepts(await window.desktop.getConcepts());
+  } catch (e) {
+    // 一覧が出せなくても質問はできるので、致命傷にはしない。
+    showError(`Learning Map を読み込めませんでした: ${e instanceof Error ? e.message : String(e)}`);
+  }
+};
+
+// 選択テキストは #selection が唯一の保持先。#code は表示用の写し。
+// 冒頭行（宣言部）だけ帯を敷いて、どこを聞いているかを示す。
+const renderCode = (text) => {
+  selection.value = text;
+  const [first, ...rest] = text.split("\n");
+  const head = document.createElement("span");
+  head.className = "hl";
+  head.textContent = first ?? "";
+  code.replaceChildren(head, document.createTextNode(rest.length ? `\n${rest.join("\n")}` : ""));
+};
+
+// #error は失敗と成功の両方を出す共有チャネル。CSS が data-tone で色を出し分ける。
+const showError = (message = "") => {
+  error.textContent = message;
+  error.dataset.tone = "error";
+};
+const showNotice = (message = "") => {
+  error.textContent = message;
+  error.dataset.tone = "notice";
+};
+
+void loadConcepts();
+
 const accessibility = document.createElement("button");
+// type を明示しないと submit 扱いになり、primary のスタイルも拾ってしまう。
+accessibility.type = "button";
 accessibility.textContent = "アクセシビリティ設定を開く";
 accessibility.onclick = async () => {
   try {
@@ -17,19 +78,31 @@ accessibility.onclick = async () => {
     );
   }
 };
-$("settings").parentElement?.append(accessibility);
-const showError = (message = "") => {
-  error.textContent = message;
-};
-window.desktop.onSelection(({ selection: text, error: message }) => {
-  selection.value = text;
-  showError(message);
+$("settings-cancel").before(accessibility);
+
+const resetCard = () => {
+  cardTitle.textContent = "回答";
   answer.textContent = "";
+  chips.hidden = true;
+  chips.replaceChildren();
+};
+
+window.desktop.onSelection(({ selection: text, error: message }) => {
+  renderCode(text);
+  if (message) showError(message);
+  else showNotice();
+  resetCard();
+  card.hidden = true;
   question.focus();
 });
+const thread = $("thread");
 window.desktop.onDelta((delta) => {
+  // 既に最下部を見ているときだけ、新しい行を追って自動スクロールする。
+  const atBottom = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 48;
   answer.textContent += delta;
+  if (atBottom) thread.scrollTop = thread.scrollHeight;
 });
+
 $("retry").onclick = async () => {
   try {
     await window.desktop.retrySelection();
@@ -38,13 +111,26 @@ $("retry").onclick = async () => {
   }
 };
 $("close").onclick = () => window.desktop.close();
+$("card-close").onclick = () => {
+  card.hidden = true;
+};
+// 「もっと自分で考えたい」は Hint モードが入るまで質問欄へ促すだけに留める。
+$("think").onclick = () => {
+  question.focus();
+  showNotice("自分の言葉で考えを書いてみてください。");
+};
+
 const ask = async () => {
   if (isAsking) return;
   isAsking = true;
   send.disabled = true;
   try {
-    showError();
+    showNotice();
     answer.textContent = "";
+    chips.hidden = true;
+    const asked = question.value.trim();
+    cardTitle.textContent = asked || "回答";
+    card.hidden = false;
     await window.desktop.ask(selection.value, question.value);
   } catch (e) {
     showError(e.message);
@@ -54,7 +140,8 @@ const ask = async () => {
   }
 };
 send.onclick = ask;
-$("settings").onclick = async () => {
+
+const openSettings = async () => {
   const s = await window.desktop.getSettings();
   ["api-base-url", "shortcut", "model", "temperature", "max-tokens"].forEach((id) => {
     $(id).value = s[id === "api-base-url" ? "apiBaseUrl" : id === "max-tokens" ? "maxTokens" : id];
@@ -62,7 +149,26 @@ $("settings").onclick = async () => {
   $("restore").checked = s.restoreClipboard;
   $("login").checked = s.launchAtLogin;
   form.hidden = false;
+  // モーダルの背後へ Tab で抜けさせない（inert は form の祖先には置けないため兄弟に置く）。
+  backdrop.forEach((element) => element.setAttribute("inert", ""));
+  $("api-base-url").focus();
 };
+
+// 閉じる経路は 3 つ（キャンセル・保存・Escape）ある。inert の解除と
+// フォーカス復帰を取りこぼさないよう、必ずここを通す。
+const closeSettings = () => {
+  form.hidden = true;
+  backdrop.forEach((element) => element.removeAttribute("inert"));
+  $("settings").focus();
+};
+$("settings").onclick = async () => {
+  try {
+    await openSettings();
+  } catch (e) {
+    showError(e.message);
+  }
+};
+$("settings-cancel").onclick = closeSettings;
 form.onsubmit = async (event) => {
   event.preventDefault();
   try {
@@ -76,15 +182,23 @@ form.onsubmit = async (event) => {
       restoreClipboard: $("restore").checked,
       launchAtLogin: $("login").checked,
     });
-    form.hidden = true;
-    showError("設定を保存しました。");
+    closeSettings();
+    showNotice("設定を保存しました。");
   } catch (e) {
     showError(e.message);
   }
 };
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") window.desktop.close();
-  if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+  if (event.key === "Escape") {
+    // 設定シートが開いていれば、まずそれだけ閉じる。
+    if (!form.hidden) {
+      closeSettings();
+      return;
+    }
+    window.desktop.close();
+  }
+  // 設定シート表示中は背後の送信を走らせない。
+  if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && form.hidden) {
     event.preventDefault();
     void ask();
   }

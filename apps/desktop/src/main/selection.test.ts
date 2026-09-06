@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { captureSelection } from "./selection.js";
+import { BOOKMARK_TYPE, captureSelection, toClipboardEntries } from "./selection.js";
 
 describe("captureSelection", () => {
   it("returns the copied selection and restores the prior clipboard", async () => {
@@ -119,5 +119,77 @@ describe("captureSelection", () => {
     });
 
     expect(restoreCount).toBe(0);
+  });
+});
+
+describe("toClipboardEntries", () => {
+  it("unwraps each type into a writable value", async () => {
+    const html = new Blob(["<b>hi</b>"], { type: "text/html" });
+    const text = new Blob(["hi"], { type: "text/plain" });
+    const items = [
+      {
+        types: ["text/plain", "text/html"],
+        getType: async (type: string) => (type === "text/html" ? html : text),
+      },
+    ];
+
+    const entries = await toClipboardEntries(items);
+
+    expect(entries).toEqual([
+      [
+        { type: "text/plain", value: text },
+        { type: "text/html", value: html },
+      ],
+    ]);
+  });
+
+  it("drops values that cannot be reconstructed", async () => {
+    const items = [{ types: ["text/uri-list"], getType: async () => "https://example.com" }];
+    const dropped = vi.fn();
+
+    expect(await toClipboardEntries(items, dropped)).toEqual([]);
+    expect(dropped).toHaveBeenCalledWith("text/uri-list", "https://example.com");
+  });
+
+  it("keeps a bookmark-only snapshot", async () => {
+    const bookmark = { title: "Electron", url: "https://electronjs.org" };
+    const items = [{ types: [BOOKMARK_TYPE], getType: async () => bookmark }];
+
+    expect(await toClipboardEntries(items)).toEqual([[{ type: BOOKMARK_TYPE, value: bookmark }]]);
+  });
+
+  it("keeps both blob and bookmark values in a mixed snapshot", async () => {
+    const text = new Blob(["hi"], { type: "text/plain" });
+    const bookmark = { title: "Electron", url: "https://electronjs.org" };
+    const items = [
+      {
+        types: ["text/plain", BOOKMARK_TYPE],
+        getType: async (type: string) => (type === BOOKMARK_TYPE ? bookmark : text),
+      },
+    ];
+
+    expect(await toClipboardEntries(items)).toEqual([
+      [
+        { type: "text/plain", value: text },
+        { type: BOOKMARK_TYPE, value: bookmark },
+      ],
+    ]);
+  });
+
+  it("drops a bookmark type whose value is not a bookmark", async () => {
+    const items = [{ types: [BOOKMARK_TYPE], getType: async () => ({ title: "no url" }) }];
+
+    expect(await toClipboardEntries(items)).toEqual([]);
+  });
+
+  it("returns entries that are not the original ClipboardItem objects", async () => {
+    const blob = new Blob(["hi"], { type: "text/plain" });
+    const original = { types: ["text/plain"], getType: async () => blob };
+
+    const entries = await toClipboardEntries([original]);
+
+    // clipboard.write() へ渡すのは元オブジェクトであってはならない。
+    expect(entries[0]).not.toBe(original);
+    expect(entries[0]?.[0]?.value).toBe(blob);
   });
 });

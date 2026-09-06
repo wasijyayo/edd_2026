@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld("desktop", {
   ask: (selection: string, question: string) =>
     ipcRenderer.invoke("answer:ask", selection, question),
   close: () => ipcRenderer.invoke("window:close"),
+  minimize: () => ipcRenderer.invoke("window:minimize"),
+  getConcepts: () => ipcRenderer.invoke("concepts:list"),
   openAccessibilitySettings: () => ipcRenderer.invoke("system:accessibility"),
   onSelection: (listener: (payload: { selection: string; error?: string }) => void) =>
     ipcRenderer.on("selection", (_event, payload) => listener(payload)),

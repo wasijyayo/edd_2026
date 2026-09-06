@@ -8,38 +8,92 @@
   </head>
   <body>
     <main>
-      <header>
-        <h1>Gakushu Sochi</h1>
-        <button id="close" aria-label="閉じる">×</button>
+      <header id="titlebar">
+        <div class="brand">
+          <h1>学習装置</h1>
+          <span class="brand-latin">Gakushu Sochi</span>
+        </div>
+        <div class="win-actions">
+          <button id="close" aria-label="閉じる">×</button>
+        </div>
       </header>
-      <p id="error" role="alert"></p>
-      <label>選択テキスト<textarea id="selection" rows="7" readonly></textarea></label
-      ><button id="retry">選択を再取得</button
-      ><label
-        >質問<textarea id="question" rows="3" placeholder="何を知りたいですか？"></textarea>
-      </label>
-      <div class="actions"><button id="send">送信</button><button id="settings">設定</button></div>
-      <section>
-        <h2>回答</h2>
-        <pre id="answer"></pre>
-      </section>
-      <form id="settings-form" hidden>
-        <h2>設定</h2>
-        <label>API URL<input id="api-base-url" type="url" required /></label
-        ><label
-          >API トークン<input
-            id="api-token"
-            type="password"
-            autocomplete="off"
-            placeholder="変更時のみ入力"
-        /></label>
-        <label>ショートカット<input id="shortcut" required /></label
-        ><label>モデル<input id="model" required /></label
-        ><label>温度<input id="temperature" type="number" min="0" max="2" step="0.1" /></label
-        ><label>最大トークン<input id="max-tokens" type="number" min="1" max="16384" /></label
-        ><label><input id="restore" type="checkbox" /> クリップボードを復元する</label
-        ><label><input id="login" type="checkbox" /> ログイン時に起動する</label
-        ><button>保存</button>
+
+      <div class="workspace" id="workspace">
+        <aside class="sidebar">
+          <div class="kicker" id="map-title">Learning Map · Go</div>
+          <ul class="concepts" id="concepts" aria-labelledby="map-title"></ul>
+          <div class="sidebar-foot"><button id="settings">設定</button></div>
+        </aside>
+
+        <section class="stage">
+          <!-- 会話領域: ここだけがスクロールする -->
+          <div class="thread" id="thread">
+            <p id="error" role="alert"></p>
+
+            <div class="code-wrap">
+              <div class="code-head">
+                <span class="kicker">選択テキスト</span>
+                <button id="retry">選択を再取得</button>
+              </div>
+              <!-- 表示用のコードブロック。#selection は値の唯一の保持先として残す。 -->
+              <pre id="code" class="code" aria-live="polite"></pre>
+              <textarea id="selection" hidden readonly aria-hidden="true"></textarea>
+            </div>
+
+            <!-- 回答: 縦に伸びるアシスタントの吹き出し -->
+            <div class="message" id="card" hidden>
+              <div class="message-head">
+                <div class="avatar" aria-hidden="true">学</div>
+                <h2 id="card-title">回答</h2>
+                <button id="card-close" aria-label="回答を閉じる">×</button>
+              </div>
+              <pre id="answer"></pre>
+              <div class="chips" id="chips" hidden></div>
+            </div>
+          </div>
+
+          <!-- 入力欄: 下に固定 -->
+          <div class="composer">
+            <textarea
+              id="question"
+              rows="2"
+              placeholder="何を知りたいですか？"
+              aria-label="質問"
+            ></textarea>
+            <div class="composer-actions">
+              <button id="think">もっと自分で考えたい</button><button id="send">送信</button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <form
+        id="settings-form"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-title"
+        hidden
+      >
+        <div class="settings-panel">
+          <h2 id="settings-title">設定</h2>
+          <label>API URL<input id="api-base-url" type="url" required /></label>
+          <label
+            >API トークン<input
+              id="api-token"
+              type="password"
+              autocomplete="off"
+              placeholder="変更時のみ入力"
+          /></label>
+          <label>ショートカット<input id="shortcut" required /></label>
+          <label>モデル<input id="model" required /></label>
+          <label>温度<input id="temperature" type="number" min="0" max="2" step="0.1" /></label>
+          <label>最大トークン<input id="max-tokens" type="number" min="1" max="16384" /></label>
+          <label><input id="restore" type="checkbox" /> クリップボードを復元する</label>
+          <label><input id="login" type="checkbox" /> ログイン時に起動する</label>
+          <div class="settings-actions">
+            <button type="button" id="settings-cancel">閉じる</button><button>保存</button>
+          </div>
+        </div>
       </form>
     </main>
     <script type="module" src="renderer.js"></script>
