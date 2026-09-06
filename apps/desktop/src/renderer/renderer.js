@@ -9,6 +9,8 @@ const error = $("error"),
   cardTitle = $("card-title"),
   chips = $("chips"),
   form = $("settings-form");
+// 設定シート表示中に inert 化する領域（form 自身は含めない）。
+const backdrop = [$("titlebar"), $("workspace")];
 let isAsking = false;
 
 // Concept 一覧は packages/domain が正典（main の concepts:list 経由）。
@@ -147,6 +149,17 @@ const openSettings = async () => {
   $("restore").checked = s.restoreClipboard;
   $("login").checked = s.launchAtLogin;
   form.hidden = false;
+  // モーダルの背後へ Tab で抜けさせない（inert は form の祖先には置けないため兄弟に置く）。
+  backdrop.forEach((element) => element.setAttribute("inert", ""));
+  $("api-base-url").focus();
+};
+
+// 閉じる経路は 3 つ（キャンセル・保存・Escape）ある。inert の解除と
+// フォーカス復帰を取りこぼさないよう、必ずここを通す。
+const closeSettings = () => {
+  form.hidden = true;
+  backdrop.forEach((element) => element.removeAttribute("inert"));
+  $("settings").focus();
 };
 $("settings").onclick = async () => {
   try {
@@ -155,9 +168,7 @@ $("settings").onclick = async () => {
     showError(e.message);
   }
 };
-$("settings-cancel").onclick = () => {
-  form.hidden = true;
-};
+$("settings-cancel").onclick = closeSettings;
 form.onsubmit = async (event) => {
   event.preventDefault();
   try {
@@ -171,7 +182,7 @@ form.onsubmit = async (event) => {
       restoreClipboard: $("restore").checked,
       launchAtLogin: $("login").checked,
     });
-    form.hidden = true;
+    closeSettings();
     showNotice("設定を保存しました。");
   } catch (e) {
     showError(e.message);
@@ -181,12 +192,13 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     // 設定シートが開いていれば、まずそれだけ閉じる。
     if (!form.hidden) {
-      form.hidden = true;
+      closeSettings();
       return;
     }
     window.desktop.close();
   }
-  if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+  // 設定シート表示中は背後の送信を走らせない。
+  if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && form.hidden) {
     event.preventDefault();
     void ask();
   }

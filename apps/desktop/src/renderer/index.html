@@ -8,7 +8,7 @@
   </head>
   <body>
     <main>
-      <header>
+      <header id="titlebar">
         <div class="brand">
           <h1>学習装置</h1>
           <span class="brand-latin">Gakushu Sochi</span>
@@ -18,7 +18,7 @@
         </div>
       </header>
 
-      <div class="workspace">
+      <div class="workspace" id="workspace">
         <aside class="sidebar">
           <div class="kicker" id="map-title">Learning Map · Go</div>
           <ul class="concepts" id="concepts" aria-labelledby="map-title"></ul>
@@ -67,9 +67,15 @@
         </section>
       </div>
 
-      <form id="settings-form" hidden>
+      <form
+        id="settings-form"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-title"
+        hidden
+      >
         <div class="settings-panel">
-          <h2>設定</h2>
+          <h2 id="settings-title">設定</h2>
           <label>API URL<input id="api-base-url" type="url" required /></label>
           <label
             >API トークン<input

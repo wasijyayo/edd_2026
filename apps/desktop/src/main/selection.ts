@@ -8,20 +8,46 @@ export interface ClipboardSnapshot {
   readonly fingerprint: string;
 }
 
+/**
+ * Electron の bookmark 形式。getType("electron application/bookmark") だけは
+ * Blob ではなくこの形の値を返し、同じ形のまま ClipboardItem へ書き戻せる。
+ * Electron の型に依存させないため、必要な形だけをここで定義する。
+ */
+export interface ClipboardBookmarkLike {
+  readonly title: string;
+  readonly url: string;
+}
+
+/** getType() が Blob ではなく bookmark を返す唯一の MIME type。 */
+export const BOOKMARK_TYPE = "electron application/bookmark";
+
 /** クリップボードの 1 項目を、書き戻せる素の値として持つ。 */
 export interface ClipboardEntry {
   readonly type: string;
-  readonly value: Blob;
+  readonly value: Blob | ClipboardBookmarkLike;
+}
+
+function isBookmark(value: unknown): value is ClipboardBookmarkLike {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as ClipboardBookmarkLike).title === "string" &&
+    typeof (value as ClipboardBookmarkLike).url === "string"
+  );
 }
 
 /**
  * clipboard.read() が返した ClipboardItem は clipboard.write() に渡せない
  * （Chromium が同一オブジェクトの書き戻しを拒否する）。復元に使えるよう、
  * 各 type の中身を読み出して素の値にほどく。
- * Blob 以外（bookmark など）は再構築できないため落とす。
+ *
+ * 書き戻せるのは Blob と bookmark の 2 形式のみ。それ以外の値は
+ * ClipboardItem を組み立て直せないため落とす（この分岐に入ったことは
+ * onUnreconstructable で観測できる）。
  */
 export async function toClipboardEntries(
   items: readonly ClipboardItemLike[],
+  onUnreconstructable?: (type: string, value: unknown) => void,
 ): Promise<ClipboardEntry[][]> {
   const entries: ClipboardEntry[][] = [];
   for (const item of items) {
@@ -29,6 +55,8 @@ export async function toClipboardEntries(
     for (const type of item.types) {
       const value = await item.getType(type);
       if (value instanceof Blob) perItem.push({ type, value });
+      else if (type === BOOKMARK_TYPE && isBookmark(value)) perItem.push({ type, value });
+      else onUnreconstructable?.(type, value);
     }
     if (perItem.length > 0) entries.push(perItem);
   }

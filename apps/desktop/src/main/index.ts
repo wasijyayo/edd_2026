@@ -19,7 +19,12 @@ import path from "node:path";
 import { promisify } from "node:util";
 
 import { createCredentialStore } from "./credentials.js";
-import { captureSelection, toClipboardEntries, type ClipboardSnapshot } from "./selection.js";
+import {
+  captureSelection,
+  toClipboardEntries,
+  type ClipboardBookmarkLike,
+  type ClipboardSnapshot,
+} from "./selection.js";
 import { DEFAULT_SETTINGS, normalizeSettings, type DesktopSettings } from "./settings.js";
 import { parseOpenAIStream } from "./stream.js";
 import { normalizeQuestion } from "./question.js";
@@ -209,9 +214,15 @@ async function openForSelection(): Promise<void> {
           clipboard.writeText("");
           return;
         }
-        const entries = await toClipboardEntries(items);
+        const entries = await toClipboardEntries(items, (type, value) => {
+          // 書き戻せない形式は落とすほかないが、黙って消さず理由を残す。
+          console.warn(`クリップボードの ${type} は再構築できないため復元しません:`, typeof value);
+        });
+        // Electron の型定義では ClipboardItem の値は Blob だけだが、
+        // bookmark 形式は { title, url } のまま書き戻せる（Electron 44 の仕様）。
         const ClipboardItemClass = items[0]?.constructor as
-          (new (data: Record<string, Blob>) => Electron.ClipboardItem) | undefined;
+          | (new (data: Record<string, Blob | ClipboardBookmarkLike>) => Electron.ClipboardItem)
+          | undefined;
         if (!ClipboardItemClass || entries.length === 0) return;
         await clipboard.write(
           entries.map(
