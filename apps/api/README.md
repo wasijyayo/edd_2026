@@ -24,6 +24,10 @@ cp .dev.vars.example .dev.vars      # 開発用の秘密情報。gitignore 済�
 npm run --workspace=@gakushu-sochi/api dev
 ```
 
+`apps/api/.dev.vars` に `GEMINI_API_KEY` を設定すると、`POST /v1/ai/responses` が
+Gemini の `streamGenerateContent` を中継します。desktop 側の API トークンには
+`DEV_AUTH_TOKEN` の値を設定してください。Gemini キーは desktop に保存しません。
+
 D1 のスキーマを適用する。
 
 ```bash

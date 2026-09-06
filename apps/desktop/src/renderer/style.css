@@ -1,0 +1,79 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+}
+body {
+  margin: 0;
+  background: #18181b;
+  color: #fafafa;
+}
+main {
+  padding: 18px;
+  max-width: 680px;
+  margin: auto;
+}
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+h1 {
+  font-size: 20px;
+  margin: 0;
+}
+h2 {
+  font-size: 16px;
+}
+button,
+input,
+textarea {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 0;
+  background: #2563eb;
+  color: white;
+}
+label {
+  display: block;
+  margin-top: 12px;
+  font-size: 13px;
+}
+textarea,
+input:not([type="checkbox"]) {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 5px;
+  padding: 8px;
+  border: 1px solid #52525b;
+  border-radius: 6px;
+  background: #27272a;
+  color: inherit;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+#error {
+  color: #fca5a5;
+  min-height: 1.3em;
+  white-space: pre-wrap;
+}
+pre {
+  min-height: 70px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #27272a;
+  padding: 10px;
+  border-radius: 6px;
+}
+form {
+  margin-top: 20px;
+  border-top: 1px solid #52525b;
+  padding-top: 8px;
+}

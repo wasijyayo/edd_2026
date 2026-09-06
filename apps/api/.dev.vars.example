@@ -6,3 +6,6 @@
 # CI は .dev.vars を持たないため、check:worker-types が通るよう
 # src/worker-configuration.d.ts に DEV_AUTH_TOKEN が含まれた状態でコミットする。
 DEV_AUTH_TOKEN=local-dev-token
+# Managed AI 用。本番は `wrangler secret put GEMINI_API_KEY` で設定する。
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-3.6-flash
