@@ -10,8 +10,8 @@
     "lint": "eslint src",
     "test:unit": "vitest run src",
     "test:watch": "vitest src",
-    "gen:worker-types": "wrangler types src/worker-configuration.d.ts --env-interface CloudflareBindings --include-runtime=false",
-    "check:worker-types": "wrangler types src/worker-configuration.d.ts --env-interface CloudflareBindings --include-runtime=false --check"
+    "gen:worker-types": "wrangler types src/worker-configuration.d.ts --env-interface CloudflareBindings --include-runtime=false --strict-vars=false",
+    "check:worker-types": "wrangler types src/worker-configuration.d.ts --env-interface CloudflareBindings --include-runtime=false --strict-vars=false --check"
   },
   "dependencies": {
     "@gakushu-sochi/domain": "file:../../packages/domain",
