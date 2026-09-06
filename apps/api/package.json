@@ -10,13 +10,17 @@
     "lint": "eslint src",
     "test:unit": "vitest run src",
     "test:watch": "vitest src",
-    "gen:worker-types": "wrangler types src/worker-configuration.d.ts --env-interface CloudflareBindings --include-runtime=false",
-    "check:worker-types": "wrangler types src/worker-configuration.d.ts --env-interface CloudflareBindings --include-runtime=false --check"
+    "gen:worker-types": "wrangler types src/worker-configuration.d.ts --env-interface CloudflareBindings --include-runtime=false --strict-vars=false",
+    "check:worker-types": "wrangler types src/worker-configuration.d.ts --env-interface CloudflareBindings --include-runtime=false --strict-vars=false --check"
   },
   "dependencies": {
-    "hono": "^4.13.7"
+    "@gakushu-sochi/domain": "file:../../packages/domain",
+    "@hono/valibot-validator": "^0.6.1",
+    "hono": "^4.13.7",
+    "valibot": "^1.4.2"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260905.1",
     "@eslint/js": "^10.0.1",
     "eslint": "^10.9.1",
     "eslint-config-prettier": "^10.1.8",

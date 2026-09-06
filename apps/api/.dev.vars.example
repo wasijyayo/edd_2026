@@ -1,0 +1,8 @@
+# ローカル開発用の設定例。`cp .dev.vars.example .dev.vars` して使う。
+# .dev.vars は gitignore 済み。本番は `wrangler secret put DEV_AUTH_TOKEN` で設定し、
+# リポジトリには置かない（apps/api/README.md）。
+#
+# wrangler types はこのファイルではなく .dev.vars を読んで型を生成する。
+# CI は .dev.vars を持たないため、check:worker-types が通るよう
+# src/worker-configuration.d.ts に DEV_AUTH_TOKEN が含まれた状態でコミットする。
+DEV_AUTH_TOKEN=local-dev-token

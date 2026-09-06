@@ -1,6 +1,10 @@
 # 環境変数
 .env
 .env.*
+# Wrangler のローカル秘密情報。.dev.vars.example だけを追跡する。
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
 
 # Claude Code
 .claude/
@@ -20,3 +24,5 @@ dist/
 
 # VS Code Extension のテスト
 .vscode-test/
+
+.vitest/

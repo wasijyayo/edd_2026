@@ -10,7 +10,7 @@ const tsconfigRootDir = import.meta.dirname;
 
 export default [
   {
-    ignores: ["node_modules/**", "src/worker-configuration.d.ts"],
+    ignores: ["node_modules/**", "dist/**", "src/concepts.generated.ts"],
     languageOptions: {
       parserOptions: { tsconfigRootDir },
     },

@@ -8,4 +8,46 @@
     "enabled": true,
     "head_sampling_rate": 1,
   },
+  "vars": {
+    "DEV_AUTH_USER_ID": "dev-user",
+    // apps/web からの利用を許可する生成元をカンマ区切りで並べる。
+    // 認証付きの API なので "*" にしない。空なら誰も許可しない。
+    "CORS_ALLOWED_ORIGINS": "",
+  },
+  // 必要な秘密情報の「名前」を宣言する。値はここに書かない
+  // （`wrangler secret put` で設定する。apps/api/README.md）。
+  //
+  // これを書くと wrangler types が .dev.vars ではなくこの宣言から型を作るため、
+  // .dev.vars を持たない CI でも check:worker-types が通る。
+  // デプロイ時には実際に設定済みかどうかも検証される。
+  "secrets": {
+    "required": ["DEV_AUTH_TOKEN"],
+  },
+  // レート制限。認証済みトークンであっても無制限に叩けないようにする。
+  // period は 10 か 60 のみ。
+  "ratelimits": [
+    {
+      // 同期。1回で最大500件を書けるため、頻度そのものを抑える。
+      "name": "SYNC_RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 60, "period": 60 },
+    },
+    {
+      // Profile は毎回そのユーザーの全イベントを読み直して習熟度を導出するので、
+      // 同期より負荷が高い。上限を厳しくする。
+      "name": "PROFILE_RATE_LIMITER",
+      "namespace_id": "1002",
+      "simple": { "limit": 30, "period": 60 },
+    },
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "gakushu-sochi",
+      // database_id は `wrangler d1 create gakushu-sochi` の出力で置き換える。
+      // ローカル開発（wrangler dev --local）はこの値を参照しないため空でも動く。
+      "database_id": "",
+      "migrations_dir": "migrations",
+    },
+  ],
 }

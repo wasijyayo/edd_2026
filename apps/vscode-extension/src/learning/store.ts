@@ -8,39 +8,74 @@
 
 import * as vscode from "vscode";
 import {
+  applyEvent,
   createEmptyProfile,
   LEARNER_PROFILE_VERSION,
   type LearnerProfile,
   type LearningEvent,
 } from "@gakushu-sochi/domain";
-import { applyEvent } from "./mastery";
 
 /** globalState 上のキー。docs/concepts.md の「保存」を参照。 */
-const PROFILE_KEY = "codeCompanion.learnerProfile";
+const PROFILE_KEY = "gakushuSochi.learnerProfile";
 
 /**
- * 保存値が現在の LEARNER_PROFILE_VERSION と一致する LearnerProfile かを検査する。
+ * 旧キー。プロダクト名を変更する前に使っていた。
+ *
+ * 既に保存されている利用者の学習履歴は再取得できないため、キーを変えただけで
+ * 読めなくなる状態にしない。docs/concepts.md の「古いデータを黙って捨てない」に従い、
+ * 新しいキーが空のときに限り読み替えて引き継ぐ。
+ *
+ * 旧キーの値は消さない。移行に失敗した場合の退避先として残す。
+ */
+const LEGACY_PROFILE_KEY = "codeCompanion.learnerProfile";
+
+/**
+ * 保存値が現在の LEARNER_PROFILE_VERSION を持ち、そのまま使える形の
+ * LearnerProfile かを検査する。
  *
  * docs/concepts.md の「読み込み時の処理」は version の大小で分岐（マイグレーション /
  * 読み取り専用）することを理想としているが、version 2 以降がまだ存在しないため
- * `src/learning/migrate.ts` は作っていない。ここでは一致しない・壊れている場合を
- * まとめて「使えない」として扱い、新規プロファイルを作り直す簡略実装にとどめる。
+ * `src/learning/migrate.ts` は作っていない。ここでは version が一致しない場合と
+ * 構造が壊れている場合をまとめて「使えない」として扱い、新規プロファイルを
+ * 作り直す簡略実装にとどめる。
  * version 2 が生まれたら、この関数をマイグレーション適用の入口に置き換える。
+ *
+ * version だけを見るのでは足りない。`applyEvent` は `profile.events` を展開し
+ * `profile.mastery` を複製するため、version が現在値でもそれらが欠けていれば
+ * イベント記録時に TypeError で落ちる。読み込み時点で弾いて、壊れた値を
+ * 使える LearnerProfile として呼び出し側へ渡さない。
  */
 function isCurrentVersionProfile(value: unknown): value is LearnerProfile {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const candidate = value as Partial<LearnerProfile>;
   return (
-    typeof value === "object" &&
-    value !== null &&
-    (value as { version?: unknown }).version === LEARNER_PROFILE_VERSION
+    candidate.version === LEARNER_PROFILE_VERSION &&
+    Array.isArray(candidate.events) &&
+    typeof candidate.mastery === "object" &&
+    candidate.mastery !== null
   );
 }
 
-/** globalState から LearnerProfile を読み込む。無い・壊れている場合は空のプロファイルを返す。 */
+/**
+ * globalState から LearnerProfile を読み込む。無い・壊れている場合は空のプロファイルを返す。
+ *
+ * 新しいキーに値が無ければ旧キーを見る。読めたものは呼び出し側が保存した時点で
+ * 新しいキーへ移る（`recordEvent` は常に新しいキーへ書く）ため、ここでは
+ * 書き戻しをしない。読み込みだけで globalState を更新すると、VS Code の起動直後に
+ * 副作用が走り、失敗したときに握りつぶすか起動を止めるかの二択になる。
+ */
 export function loadProfile(context: vscode.ExtensionContext): LearnerProfile {
   const stored = context.globalState.get<unknown>(PROFILE_KEY);
-
   if (isCurrentVersionProfile(stored)) {
     return stored;
+  }
+
+  const legacy = context.globalState.get<unknown>(LEGACY_PROFILE_KEY);
+  if (isCurrentVersionProfile(legacy)) {
+    return legacy;
   }
 
   return createEmptyProfile(new Date().toISOString());
