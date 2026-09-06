@@ -180,3 +180,42 @@ test("タイムゾーンの無い occurredAt は導出時に例外にする", ()
 
   expect(() => deriveMasteryFromEvents(events)).toThrow(TypeError);
 });
+
+test("同じConceptIdが重複していても1回だけ畳み込む", () => {
+  // 除かずに畳み込むと、自力解決を1回しただけで evidence が2回分積まれ、
+  // confirmed(score 0.7) へ到達してしまう。
+  const events = [event("e1", "2026-09-05T00:00:01.000Z", "solved_independently")];
+  events[0]!.conceptIds = ["go.defer", "go.defer"];
+
+  const mastery = deriveMasteryFromEvents(events)["go.defer"];
+
+  expect(mastery?.evidence.solvedIndependentlyCount).toBe(1);
+  expect(mastery?.score).toBe(0.25);
+  // recentTypes は confirmed の判定窓（直近5件）に使うため、ここが二重になると
+  // 判定そのものが歪む。
+  expect(mastery?.evidence.recentTypes).toEqual(["solved_independently"]);
+  expect(mastery?.status).toBe("learning");
+});
+
+test("applyEvent でも重複したConceptIdを1回だけ畳み込む", () => {
+  // 2つの入口は別々のループなので、両方を検証する。
+  const e = event("e1", "2026-09-05T00:00:01.000Z", "solved_independently");
+  e.conceptIds = ["go.defer", "go.defer"];
+
+  const profile = applyEvent(createEmptyProfile("2026-09-05T00:00:00.000Z"), e);
+  const mastery = profile.mastery["go.defer"];
+
+  expect(mastery?.evidence.solvedIndependentlyCount).toBe(1);
+  expect(mastery?.score).toBe(0.25);
+  expect(mastery?.evidence.recentTypes).toEqual(["solved_independently"]);
+});
+
+test("重複を除いても複数のConceptは別々に畳み込む", () => {
+  const e = event("e1", "2026-09-05T00:00:01.000Z", "solved_independently");
+  e.conceptIds = ["go.defer", "go.slice", "go.defer"];
+
+  const mastery = deriveMasteryFromEvents([e]);
+
+  expect(mastery["go.defer"]?.evidence.solvedIndependentlyCount).toBe(1);
+  expect(mastery["go.slice"]?.evidence.solvedIndependentlyCount).toBe(1);
+});

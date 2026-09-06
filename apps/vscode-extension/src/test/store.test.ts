@@ -107,3 +107,59 @@ test("読み込みでは globalState を書き換えない", () => {
 
   expect(update).not.toHaveBeenCalled();
 });
+
+/** version は現在値だが、applyEvent が必要とする形を満たさない保存値。 */
+const VERSION_CURRENT_BUT_BROKEN = {
+  version: 1,
+  updatedAt: "2026-09-05T00:00:00.000Z",
+  mastery: {},
+  // events が無い
+};
+
+test("versionが現在値でもeventsが無ければ使わない", () => {
+  // applyEvent は profile.events を展開するため、そのまま返すと
+  // イベント記録時に TypeError で落ちる。読み込み時点で弾く。
+  const loaded = loadProfile(contextWith({ [CURRENT_KEY]: VERSION_CURRENT_BUT_BROKEN }));
+
+  expect(loaded.events).toEqual([]);
+  expect(loaded.updatedAt).not.toBe("2026-09-05T00:00:00.000Z");
+});
+
+test("旧キーがversion現在値でも壊れていれば使わない", () => {
+  const loaded = loadProfile(contextWith({ [LEGACY_KEY]: VERSION_CURRENT_BUT_BROKEN }));
+
+  expect(loaded.events).toEqual([]);
+  expect(loaded.mastery).toEqual({});
+});
+
+test("eventsが配列でなければ使わない", () => {
+  const loaded = loadProfile(
+    contextWith({
+      [CURRENT_KEY]: { ...VERSION_CURRENT_BUT_BROKEN, events: "not-an-array" },
+    }),
+  );
+
+  expect(loaded.events).toEqual([]);
+});
+
+test("masteryが欠けていれば使わない", () => {
+  const loaded = loadProfile(
+    contextWith({
+      [CURRENT_KEY]: { version: 1, updatedAt: "2026-09-05T00:00:00.000Z", events: [] },
+    }),
+  );
+
+  expect(loaded.mastery).toEqual({});
+  expect(loaded.updatedAt).not.toBe("2026-09-05T00:00:00.000Z");
+});
+
+test("新しいキーが壊れていて旧キーが正常なら旧キーを使う", () => {
+  const loaded = loadProfile(
+    contextWith({
+      [CURRENT_KEY]: VERSION_CURRENT_BUT_BROKEN,
+      [LEGACY_KEY]: profileWith("go.defer"),
+    }),
+  );
+
+  expect(loaded.mastery["go.defer"]).toBeDefined();
+});

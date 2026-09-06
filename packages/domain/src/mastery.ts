@@ -143,11 +143,27 @@ export function applyEvent(profile: LearnerProfile, event: LearningEvent): Learn
   const events = [...profile.events, event].slice(-EVENT_HISTORY_LIMIT);
 
   const mastery = { ...profile.mastery };
-  for (const conceptId of event.conceptIds) {
+  for (const conceptId of uniqueConceptIds(event)) {
     mastery[conceptId] = foldEventIntoMastery(conceptId, mastery[conceptId], event);
   }
 
   return { ...profile, updatedAt: event.occurredAt, mastery, events };
+}
+
+/**
+ * 1件のイベントが対象とする Concept を、重複を除いて返す。
+ *
+ * `conceptIds` は配列であり、同じ ID が複数入りうる。除かずに畳み込むと
+ * 1件のイベントで evidence が二重に加算され、自力解決を1回しただけで
+ * `confirmed`（score 0.7）へ到達する。`recentTypes` にも同じ種別が2つ積まれ、
+ * `confirmed` の判定窓（直近5件）まで歪む。
+ *
+ * 除去はここで行い、HTTP の契約やクライアントの解析側に持たせない。
+ * 二重計上が起きるのはこの畳み込みだけであり、境界を分散させると
+ * 守り忘れる場所が増える。誰が配列を作ったかに関わらず、ドメインの側で成立させる。
+ */
+function uniqueConceptIds(event: LearningEvent): Iterable<ConceptId> {
+  return new Set(event.conceptIds);
 }
 
 /**
@@ -176,7 +192,7 @@ export function deriveMasteryFromEvents(
   ordered.sort(compareEventOrder);
 
   for (const { event } of ordered) {
-    for (const conceptId of event.conceptIds) {
+    for (const conceptId of uniqueConceptIds(event)) {
       mastery[conceptId] = foldEventIntoMastery(conceptId, mastery[conceptId], event);
     }
   }

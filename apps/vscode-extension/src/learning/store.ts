@@ -30,19 +30,32 @@ const PROFILE_KEY = "gakushuSochi.learnerProfile";
 const LEGACY_PROFILE_KEY = "codeCompanion.learnerProfile";
 
 /**
- * 保存値が現在の LEARNER_PROFILE_VERSION と一致する LearnerProfile かを検査する。
+ * 保存値が現在の LEARNER_PROFILE_VERSION を持ち、そのまま使える形の
+ * LearnerProfile かを検査する。
  *
  * docs/concepts.md の「読み込み時の処理」は version の大小で分岐（マイグレーション /
  * 読み取り専用）することを理想としているが、version 2 以降がまだ存在しないため
- * `src/learning/migrate.ts` は作っていない。ここでは一致しない・壊れている場合を
- * まとめて「使えない」として扱い、新規プロファイルを作り直す簡略実装にとどめる。
+ * `src/learning/migrate.ts` は作っていない。ここでは version が一致しない場合と
+ * 構造が壊れている場合をまとめて「使えない」として扱い、新規プロファイルを
+ * 作り直す簡略実装にとどめる。
  * version 2 が生まれたら、この関数をマイグレーション適用の入口に置き換える。
+ *
+ * version だけを見るのでは足りない。`applyEvent` は `profile.events` を展開し
+ * `profile.mastery` を複製するため、version が現在値でもそれらが欠けていれば
+ * イベント記録時に TypeError で落ちる。読み込み時点で弾いて、壊れた値を
+ * 使える LearnerProfile として呼び出し側へ渡さない。
  */
 function isCurrentVersionProfile(value: unknown): value is LearnerProfile {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const candidate = value as Partial<LearnerProfile>;
   return (
-    typeof value === "object" &&
-    value !== null &&
-    (value as { version?: unknown }).version === LEARNER_PROFILE_VERSION
+    candidate.version === LEARNER_PROFILE_VERSION &&
+    Array.isArray(candidate.events) &&
+    typeof candidate.mastery === "object" &&
+    candidate.mastery !== null
   );
 }
 
