@@ -24,6 +24,7 @@ import { DEFAULT_SETTINGS, normalizeSettings, type DesktopSettings } from "./set
 import { parseOpenAIStream } from "./stream.js";
 import { normalizeQuestion } from "./question.js";
 import { shouldShowStartupWindow } from "./startup.js";
+import { activatePopup } from "./activation.js";
 
 const execFileAsync = promisify(execFile);
 const SERVICE_NAME = "Gakushu Sochi";
@@ -129,8 +130,7 @@ function createPopup(): BrowserWindow {
 
 function showPopup(selection: string, error?: string): void {
   popup ??= createPopup();
-  popup.show();
-  popup.focus();
+  activatePopup(app, popup);
   const sendSelection = () => popup?.webContents.send("selection", { selection, error });
   if (popup.webContents.isLoading()) popup.webContents.once("did-finish-load", sendSelection);
   else sendSelection();
