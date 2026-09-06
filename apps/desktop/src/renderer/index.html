@@ -26,36 +26,41 @@
         </aside>
 
         <section class="stage">
-          <p id="error" role="alert"></p>
+          <!-- 会話領域: ここだけがスクロールする -->
+          <div class="thread" id="thread">
+            <p id="error" role="alert"></p>
 
-          <div class="code-wrap">
-            <div class="code-head">
-              <span class="kicker">選択テキスト</span>
-              <button id="retry">選択を再取得</button>
+            <div class="code-wrap">
+              <div class="code-head">
+                <span class="kicker">選択テキスト</span>
+                <button id="retry">選択を再取得</button>
+              </div>
+              <!-- 表示用のコードブロック。#selection は値の唯一の保持先として残す。 -->
+              <pre id="code" class="code" aria-live="polite"></pre>
+              <textarea id="selection" hidden readonly aria-hidden="true"></textarea>
             </div>
-            <!-- 表示用のコードブロック。#selection は値の唯一の保持先として残す。 -->
-            <pre id="code" class="code" aria-live="polite"></pre>
-            <textarea id="selection" hidden readonly aria-hidden="true"></textarea>
-          </div>
 
-          <!-- 質問カード: コード面に重なる浮遊カード -->
-          <div class="card" id="card">
-            <div class="card-head">
-              <div class="avatar" aria-hidden="true">学</div>
-              <h2 id="card-title">質問する</h2>
-              <button id="card-close" aria-label="カードを閉じる">×</button>
-            </div>
-            <div class="card-body">
-              <textarea
-                id="question"
-                rows="2"
-                placeholder="何を知りたいですか？"
-                aria-label="質問"
-              ></textarea>
+            <!-- 回答: 縦に伸びるアシスタントの吹き出し -->
+            <div class="message" id="card" hidden>
+              <div class="message-head">
+                <div class="avatar" aria-hidden="true">学</div>
+                <h2 id="card-title">回答</h2>
+                <button id="card-close" aria-label="回答を閉じる">×</button>
+              </div>
               <pre id="answer"></pre>
               <div class="chips" id="chips" hidden></div>
             </div>
-            <div class="card-actions">
+          </div>
+
+          <!-- 入力欄: 下に固定 -->
+          <div class="composer">
+            <textarea
+              id="question"
+              rows="2"
+              placeholder="何を知りたいですか？"
+              aria-label="質問"
+            ></textarea>
+            <div class="composer-actions">
               <button id="think">もっと自分で考えたい</button><button id="send">送信</button>
             </div>
           </div>

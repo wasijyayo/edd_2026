@@ -79,8 +79,7 @@ accessibility.onclick = async () => {
 $("settings-cancel").before(accessibility);
 
 const resetCard = () => {
-  cardTitle.textContent = "質問する";
-  question.hidden = false;
+  cardTitle.textContent = "回答";
   answer.textContent = "";
   chips.hidden = true;
   chips.replaceChildren();
@@ -91,13 +90,15 @@ window.desktop.onSelection(({ selection: text, error: message }) => {
   if (message) showError(message);
   else showNotice();
   resetCard();
-  card.hidden = false;
+  card.hidden = true;
   question.focus();
 });
+const thread = $("thread");
 window.desktop.onDelta((delta) => {
-  // 最初の delta で質問欄を畳み、カードを回答表示に切り替える。
-  question.hidden = true;
+  // 既に最下部を見ているときだけ、新しい行を追って自動スクロールする。
+  const atBottom = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 48;
   answer.textContent += delta;
+  if (atBottom) thread.scrollTop = thread.scrollHeight;
 });
 
 $("retry").onclick = async () => {
@@ -113,7 +114,6 @@ $("card-close").onclick = () => {
 };
 // 「もっと自分で考えたい」は Hint モードが入るまで質問欄へ促すだけに留める。
 $("think").onclick = () => {
-  question.hidden = false;
   question.focus();
   showNotice("自分の言葉で考えを書いてみてください。");
 };
@@ -127,7 +127,8 @@ const ask = async () => {
     answer.textContent = "";
     chips.hidden = true;
     const asked = question.value.trim();
-    if (asked) cardTitle.textContent = asked;
+    cardTitle.textContent = asked || "回答";
+    card.hidden = false;
     await window.desktop.ask(selection.value, question.value);
   } catch (e) {
     showError(e.message);
