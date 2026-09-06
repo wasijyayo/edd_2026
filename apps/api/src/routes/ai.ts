@@ -6,6 +6,9 @@ import type { AuthVariables } from "../auth/middleware.js";
 const requestSchema = v.object({
   selection: v.pipe(v.string(), v.minLength(1), v.maxLength(20_000)),
   question: v.pipe(v.string(), v.maxLength(4_000)),
+  model: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(200))),
+  temperature: v.optional(v.pipe(v.number(), v.minValue(0), v.maxValue(2))),
+  maxTokens: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(16_384))),
 });
 
 const DEFAULT_EXPLANATION_QUESTION = "この選択テキストを初心者にも分かるように解説してください。";
@@ -22,12 +25,18 @@ export function createAiRoute(resolve: AiDepsResolver) {
   const route = new Hono<{ Bindings: CloudflareBindings; Variables: AuthVariables }>();
 
   route.post("/ai/responses", vValidator("json", requestSchema), async (c) => {
-    const { selection, question } = c.req.valid("json");
+    const {
+      selection,
+      question,
+      model: requestedModel,
+      temperature,
+      maxTokens,
+    } = c.req.valid("json");
     const normalizedQuestion = question.trim() || DEFAULT_EXPLANATION_QUESTION;
     const deps = resolve(c.env);
     if (!deps.apiKey) return c.json({ error: "AI service is not configured" }, 503);
 
-    const model = deps.model || "gemini-2.0-flash";
+    const model = requestedModel || deps.model || "gemini-3.6-flash";
     const upstream = await deps.fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`,
       {
@@ -37,6 +46,9 @@ export function createAiRoute(resolve: AiDepsResolver) {
           contents: [
             { parts: [{ text: `選択テキスト:\n${selection}\n\n質問:\n${normalizedQuestion}` }] },
           ],
+          ...(temperature === undefined && maxTokens === undefined
+            ? {}
+            : { generationConfig: { temperature, maxOutputTokens: maxTokens } }),
         }),
       },
     );

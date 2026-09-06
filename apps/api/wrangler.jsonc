@@ -13,7 +13,7 @@
     // apps/web からの利用を許可する生成元をカンマ区切りで並べる。
     // 認証付きの API なので "*" にしない。空なら誰も許可しない。
     "CORS_ALLOWED_ORIGINS": "",
-    "GEMINI_MODEL": "gemini-2.0-flash",
+    "GEMINI_MODEL": "gemini-3.6-flash",
   },
   // 必要な秘密情報の「名前」を宣言する。値はここに書かない
   // （`wrangler secret put` で設定する。apps/api/README.md）。

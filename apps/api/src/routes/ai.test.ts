@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { app } from "../app.js";
 
+const PROFILE_RATE_LIMITER = {
+  limit: () => Promise.resolve({ success: true }),
+} as unknown as RateLimit;
+
 describe("POST /v1/ai/responses", () => {
   it("認証済みの質問を Gemini のストリームとして返す", async () => {
     vi.stubGlobal(
@@ -18,21 +22,35 @@ describe("POST /v1/ai/responses", () => {
       {
         method: "POST",
         headers: { Authorization: "Bearer secret", "Content-Type": "application/json" },
-        body: JSON.stringify({ selection: "const answer = 42", question: "これは何ですか？" }),
+        body: JSON.stringify({
+          selection: "const answer = 42",
+          question: "これは何ですか？",
+          model: "gemini-3.6-flash",
+          temperature: 0.3,
+          maxTokens: 1024,
+        }),
       },
       {
         DEV_AUTH_TOKEN: "secret",
         GEMINI_API_KEY: "test-key",
-        GEMINI_MODEL: "gemini-2.0-flash",
+        GEMINI_MODEL: "gemini-3.6-flash",
+        PROFILE_RATE_LIMITER,
       },
     );
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("text/event-stream");
     expect(await response.text()).toContain("[DONE]");
+    const [, init] = vi.mocked(fetch).mock.calls[0] ?? [];
+    expect(JSON.parse(String(init?.body))).toMatchObject({
+      generationConfig: { temperature: 0.3, maxOutputTokens: 1024 },
+    });
     expect(fetch).toHaveBeenCalledWith(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse",
-      expect.objectContaining({ method: "POST" }),
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:streamGenerateContent?alt=sse",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.stringContaining('"temperature":0.3'),
+      }),
     );
     vi.unstubAllGlobals();
   });
@@ -45,7 +63,7 @@ describe("POST /v1/ai/responses", () => {
         headers: { Authorization: "Bearer secret", "Content-Type": "application/json" },
         body: JSON.stringify({ selection: "code", question: "explain" }),
       },
-      { DEV_AUTH_TOKEN: "secret" },
+      { DEV_AUTH_TOKEN: "secret", PROFILE_RATE_LIMITER },
     );
 
     expect(response.status).toBe(503);
@@ -60,7 +78,7 @@ describe("POST /v1/ai/responses", () => {
         headers: { Authorization: "Bearer secret", "Content-Type": "application/json" },
         body: JSON.stringify({ selection: "", question: "質問" }),
       },
-      { DEV_AUTH_TOKEN: "secret", GEMINI_API_KEY: "test-key" },
+      { DEV_AUTH_TOKEN: "secret", GEMINI_API_KEY: "test-key", PROFILE_RATE_LIMITER },
     );
 
     expect(response.status).toBe(400);
@@ -84,7 +102,7 @@ describe("POST /v1/ai/responses", () => {
         headers: { Authorization: "Bearer secret", "Content-Type": "application/json" },
         body: JSON.stringify({ selection: "const answer = 42", question: "   " }),
       },
-      { DEV_AUTH_TOKEN: "secret", GEMINI_API_KEY: "test-key" },
+      { DEV_AUTH_TOKEN: "secret", GEMINI_API_KEY: "test-key", PROFILE_RATE_LIMITER },
     );
 
     expect(response.status).toBe(200);

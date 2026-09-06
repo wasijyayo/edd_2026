@@ -19,7 +19,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 
 import { createCredentialStore } from "./credentials.js";
-import { captureSelection } from "./selection.js";
+import { captureSelection, type ClipboardSnapshot } from "./selection.js";
 import { DEFAULT_SETTINGS, normalizeSettings, type DesktopSettings } from "./settings.js";
 import { parseOpenAIStream } from "./stream.js";
 import { normalizeQuestion } from "./question.js";
@@ -88,6 +88,25 @@ function credentialStore(fileName: string) {
 
 function apiTokenStore() {
   return credentialStore("api-token.enc");
+}
+
+async function readClipboardSnapshot(): Promise<ClipboardSnapshot> {
+  const items = await clipboard.read();
+  const fingerprints: string[] = [];
+  for (const item of items) {
+    const values: string[] = [];
+    for (const type of [...item.types].sort()) {
+      const value = await item.getType(type);
+      if (value instanceof Blob) {
+        const bytes = Buffer.from(await value.arrayBuffer()).toString("base64");
+        values.push(`${type}:blob:${value.type}:${bytes}`);
+      } else {
+        values.push(`${type}:bookmark:${JSON.stringify(value)}`);
+      }
+    }
+    fingerprints.push(values.join("\u0000"));
+  }
+  return { items, fingerprint: fingerprints.join("\u0001") };
 }
 
 async function loadSettings(): Promise<void> {
@@ -169,9 +188,10 @@ async function openForSelection(): Promise<void> {
   try {
     const selection = await captureSelection({
       readText: () => clipboard.readText(),
-      writeText: (text) => clipboard.writeText(text),
       copy: simulateCopy,
       wait: () => new Promise((resolve) => setTimeout(resolve, 250)),
+      readClipboard: readClipboardSnapshot,
+      writeClipboard: (items) => clipboard.write([...items] as Electron.ClipboardItem[]),
       restoreClipboard: settings.restoreClipboard,
     });
     showPopup(
@@ -248,7 +268,13 @@ async function askManagedAI(
   const response = await fetch(`${settings.apiBaseUrl.replace(/\/$/, "")}/v1/ai/responses`, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiToken}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ selection, question }),
+    body: JSON.stringify({
+      selection,
+      question,
+      model: settings.model,
+      temperature: settings.temperature,
+      maxTokens: settings.maxTokens,
+    }),
   });
   if (!response.ok || !response.body)
     throw new Error(

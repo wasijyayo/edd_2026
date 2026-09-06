@@ -11,7 +11,7 @@ export interface DesktopSettings {
 export const DEFAULT_SETTINGS: DesktopSettings = {
   apiBaseUrl: "http://localhost:8787",
   shortcut: "CommandOrControl+Shift+K",
-  model: "gpt-4.1-mini",
+  model: "gemini-3.6-flash",
   temperature: 0.3,
   maxTokens: 1024,
   restoreClipboard: true,
@@ -28,7 +28,7 @@ function isSettings(value: unknown): value is DesktopSettings {
   const settings = value as Record<string, unknown>;
   return (
     typeof settings.apiBaseUrl === "string" &&
-    settings.apiBaseUrl.startsWith("http") &&
+    isSafeApiBaseUrl(settings.apiBaseUrl) &&
     typeof settings.shortcut === "string" &&
     settings.shortcut.length > 0 &&
     typeof settings.model === "string" &&
@@ -43,4 +43,15 @@ function isSettings(value: unknown): value is DesktopSettings {
     typeof settings.restoreClipboard === "boolean" &&
     typeof settings.launchAtLogin === "boolean"
   );
+}
+
+function isSafeApiBaseUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    if (url.protocol === "https:") return true;
+    if (url.protocol !== "http:") return false;
+    return ["localhost", "127.0.0.1", "::1", "[::1]"].includes(url.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
 }

@@ -66,6 +66,12 @@ app.use(
   "/v1/learning-profile",
   rateLimit((env) => env.PROFILE_RATE_LIMITER),
 );
+// AIは外部プロバイダのコストが発生するため、Profileと同じユーザー単位の
+// レート制限を適用する。認証後に実行されるため userId で数えられる。
+app.use(
+  "/v1/ai/responses",
+  rateLimit((env) => env.PROFILE_RATE_LIMITER),
+);
 
 app.route(
   "/v1",

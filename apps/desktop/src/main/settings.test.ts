@@ -34,4 +34,28 @@ describe("normalizeSettings", () => {
       }),
     ).toEqual(DEFAULT_SETTINGS);
   });
+
+  it("allows local HTTP and remote HTTPS API URLs", () => {
+    expect(
+      normalizeSettings({
+        ...DEFAULT_SETTINGS,
+        apiBaseUrl: "http://localhost:8787",
+      }).apiBaseUrl,
+    ).toBe("http://localhost:8787");
+    expect(
+      normalizeSettings({
+        ...DEFAULT_SETTINGS,
+        apiBaseUrl: "https://api.example.com",
+      }).apiBaseUrl,
+    ).toBe("https://api.example.com");
+  });
+
+  it("rejects remote HTTP and malformed API URLs", () => {
+    expect(
+      normalizeSettings({ ...DEFAULT_SETTINGS, apiBaseUrl: "http://api.example.com" }),
+    ).toEqual(DEFAULT_SETTINGS);
+    expect(normalizeSettings({ ...DEFAULT_SETTINGS, apiBaseUrl: "not a URL" })).toEqual(
+      DEFAULT_SETTINGS,
+    );
+  });
 });

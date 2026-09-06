@@ -3,7 +3,9 @@ const error = $("error"),
   selection = $("selection"),
   question = $("question"),
   answer = $("answer"),
+  send = $("send"),
   form = $("settings-form");
+let isAsking = false;
 const accessibility = document.createElement("button");
 accessibility.textContent = "アクセシビリティ設定を開く";
 accessibility.onclick = async () => {
@@ -36,15 +38,22 @@ $("retry").onclick = async () => {
   }
 };
 $("close").onclick = () => window.desktop.close();
-$("send").onclick = async () => {
+const ask = async () => {
+  if (isAsking) return;
+  isAsking = true;
+  send.disabled = true;
   try {
     showError();
     answer.textContent = "";
     await window.desktop.ask(selection.value, question.value);
   } catch (e) {
     showError(e.message);
+  } finally {
+    isAsking = false;
+    send.disabled = false;
   }
 };
+send.onclick = ask;
 $("settings").onclick = async () => {
   const s = await window.desktop.getSettings();
   ["api-base-url", "shortcut", "model", "temperature", "max-tokens"].forEach((id) => {
@@ -75,5 +84,8 @@ form.onsubmit = async (event) => {
 };
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") window.desktop.close();
-  if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) $("send").click();
+  if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+    event.preventDefault();
+    void ask();
+  }
 });
