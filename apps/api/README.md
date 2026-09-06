@@ -34,5 +34,12 @@ D1 のスキーマを適用する。
 npx wrangler d1 migrations apply gakushu-sochi --local
 ```
 
-リモートへ適用するには `--local` を外す。`wrangler.jsonc` の `database_id` は
-`wrangler d1 create gakushu-sochi` の出力で埋める。
+リモートへ適用するには `--local` ではなく `--remote` を明示する。
+どちらも付けない場合はローカルが対象になり、リモートには何も適用されない。
+
+```bash
+npx wrangler d1 migrations apply gakushu-sochi --remote
+```
+
+`wrangler.jsonc` の `database_id` は `wrangler d1 create gakushu-sochi` の出力で埋める。
+作成済みなら `npx wrangler d1 list` で確認できる。

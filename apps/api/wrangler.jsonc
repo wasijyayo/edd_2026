@@ -45,9 +45,9 @@
     {
       "binding": "DB",
       "database_name": "gakushu-sochi",
-      // database_id は `wrangler d1 create gakushu-sochi` の出力で置き換える。
-      // ローカル開発（wrangler dev --local）はこの値を参照しないため空でも動く。
-      "database_id": "",
+      // `wrangler d1 create gakushu-sochi` の出力。
+      // ローカル開発（wrangler dev --local）はこの値を参照しない。
+      "database_id": "be8561ac-2389-4cfa-b218-f53bce7417a6",
       "migrations_dir": "migrations",
     },
   ],
