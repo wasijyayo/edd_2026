@@ -8,6 +8,33 @@ export interface ClipboardSnapshot {
   readonly fingerprint: string;
 }
 
+/** クリップボードの 1 項目を、書き戻せる素の値として持つ。 */
+export interface ClipboardEntry {
+  readonly type: string;
+  readonly value: Blob;
+}
+
+/**
+ * clipboard.read() が返した ClipboardItem は clipboard.write() に渡せない
+ * （Chromium が同一オブジェクトの書き戻しを拒否する）。復元に使えるよう、
+ * 各 type の中身を読み出して素の値にほどく。
+ * Blob 以外（bookmark など）は再構築できないため落とす。
+ */
+export async function toClipboardEntries(
+  items: readonly ClipboardItemLike[],
+): Promise<ClipboardEntry[][]> {
+  const entries: ClipboardEntry[][] = [];
+  for (const item of items) {
+    const perItem: ClipboardEntry[] = [];
+    for (const type of item.types) {
+      const value = await item.getType(type);
+      if (value instanceof Blob) perItem.push({ type, value });
+    }
+    if (perItem.length > 0) entries.push(perItem);
+  }
+  return entries;
+}
+
 export interface SelectionDependencies {
   readText: () => string | Promise<string>;
   copy: () => Promise<void>;

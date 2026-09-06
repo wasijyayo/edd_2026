@@ -19,12 +19,13 @@ import path from "node:path";
 import { promisify } from "node:util";
 
 import { createCredentialStore } from "./credentials.js";
-import { captureSelection, type ClipboardSnapshot } from "./selection.js";
+import { captureSelection, toClipboardEntries, type ClipboardSnapshot } from "./selection.js";
 import { DEFAULT_SETTINGS, normalizeSettings, type DesktopSettings } from "./settings.js";
 import { parseOpenAIStream } from "./stream.js";
 import { normalizeQuestion } from "./question.js";
 import { shouldShowStartupWindow } from "./startup.js";
 import { activatePopup } from "./activation.js";
+import { CONCEPTS } from "@gakushu-sochi/domain";
 
 const execFileAsync = promisify(execFile);
 const SERVICE_NAME = "Gakushu Sochi";
@@ -129,11 +130,18 @@ async function saveSettings(next: DesktopSettings): Promise<void> {
 
 function createPopup(): BrowserWindow {
   const window = new BrowserWindow({
-    width: 560,
-    height: 600,
+    width: 1100,
+    height: 720,
+    minWidth: 820,
+    minHeight: 560,
     show: false,
     resizable: true,
-    minimizable: false,
+    minimizable: true,
+    // タイトルバーは renderer 側で描く。macOS は信号機を OS に出させたまま
+    // 位置だけ寄せ、Windows / Linux は完全にフレームレスにする。
+    ...(process.platform === "darwin"
+      ? { titleBarStyle: "hiddenInset" as const, trafficLightPosition: { x: 18, y: 22 } }
+      : { frame: false }),
     webPreferences: {
       preload: path.join(app.getAppPath(), "out/main/preload.cjs"),
       contextIsolation: true,
@@ -191,7 +199,29 @@ async function openForSelection(): Promise<void> {
       copy: simulateCopy,
       wait: () => new Promise((resolve) => setTimeout(resolve, 250)),
       readClipboard: readClipboardSnapshot,
-      writeClipboard: (items) => clipboard.write([...items] as Electron.ClipboardItem[]),
+      // clipboard.read() が返した ClipboardItem はそのまま書き戻せない
+      // （「construct a new ClipboardItem to write」で拒否される）。
+      // 中身をほどき、同じクラスで新しい ClipboardItem を組み立て直す。
+      // ClipboardItem はメインプロセスのグローバルには無いため、
+      // 読み出したアイテム自身のコンストラクタを使う。
+      writeClipboard: async (items) => {
+        if (items.length === 0) {
+          clipboard.writeText("");
+          return;
+        }
+        const entries = await toClipboardEntries(items);
+        const ClipboardItemClass = items[0]?.constructor as
+          (new (data: Record<string, Blob>) => Electron.ClipboardItem) | undefined;
+        if (!ClipboardItemClass || entries.length === 0) return;
+        await clipboard.write(
+          entries.map(
+            (entry) =>
+              new ClipboardItemClass(
+                Object.fromEntries(entry.map(({ type, value }) => [type, value])),
+              ),
+          ),
+        );
+      },
       restoreClipboard: settings.restoreClipboard,
     });
     showPopup(
@@ -341,7 +371,17 @@ app
         event.sender.send("answer:delta", delta),
       );
     });
+    // Concept 一覧は packages/domain が正典。習熟度は API 側で導出されるため、
+    // ここでは一覧だけを渡し、status は未取得を表す "unobserved" を既定にする。
+    ipcMain.handle("concepts:list", () =>
+      CONCEPTS.map((concept) => ({
+        id: concept.id,
+        label: concept.label,
+        language: concept.language,
+      })),
+    );
     ipcMain.handle("window:close", () => popup?.hide());
+    ipcMain.handle("window:minimize", () => popup?.minimize());
     ipcMain.handle("system:accessibility", async () => {
       await openAccessibilitySettings();
     });

@@ -14,7 +14,9 @@
     "package": "npm run compile && electron-builder"
   },
   "main": "out/main/index.js",
-  "dependencies": {},
+  "dependencies": {
+    "@gakushu-sochi/domain": "file:../../packages/domain"
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.0.0",
