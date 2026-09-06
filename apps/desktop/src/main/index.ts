@@ -20,7 +20,9 @@ import { promisify } from "node:util";
 
 import { createCredentialStore } from "./credentials.js";
 import {
+  BOOKMARK_TYPE,
   captureSelection,
+  isBookmark,
   toClipboardEntries,
   type ClipboardBookmarkLike,
   type ClipboardSnapshot,
@@ -103,11 +105,17 @@ async function readClipboardSnapshot(): Promise<ClipboardSnapshot> {
     const values: string[] = [];
     for (const type of [...item.types].sort()) {
       const value = await item.getType(type);
+      // 復元側（toClipboardEntries）と同じ 3 分岐にする。ここで形式を取り違えると
+      // 指紋が衝突し、捕捉中に変わったクリップボードを上書きしかねない。
       if (value instanceof Blob) {
         const bytes = Buffer.from(await value.arrayBuffer()).toString("base64");
         values.push(`${type}:blob:${value.type}:${bytes}`);
+      } else if (type === BOOKMARK_TYPE && isBookmark(value)) {
+        values.push(`${type}:bookmark:${JSON.stringify([value.title, value.url])}`);
       } else {
-        values.push(`${type}:bookmark:${JSON.stringify(value)}`);
+        // 復元できない形式。JSON 化できない値では undefined が返り、
+        // 別内容どうしが同じ指紋になってしまうため String() で必ず文字列にする。
+        values.push(`${type}:unreconstructable:${String(JSON.stringify(value))}`);
       }
     }
     fingerprints.push(values.join("\u0000"));

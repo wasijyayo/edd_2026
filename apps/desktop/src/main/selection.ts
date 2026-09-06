@@ -27,7 +27,7 @@ export interface ClipboardEntry {
   readonly value: Blob | ClipboardBookmarkLike;
 }
 
-function isBookmark(value: unknown): value is ClipboardBookmarkLike {
+export function isBookmark(value: unknown): value is ClipboardBookmarkLike {
   return (
     typeof value === "object" &&
     value !== null &&
