@@ -32,6 +32,22 @@ function configured(value: string | undefined, name: string): string {
   return value;
 }
 
+function apiOrigin(value: string | undefined): URL {
+  const configuredOrigin = configured(value, "API_ORIGIN");
+  let origin: URL;
+  try {
+    origin = new URL(configuredOrigin);
+  } catch {
+    throw new HTTPException(500, { message: "API_ORIGIN must be a valid URL" });
+  }
+  const localHttp =
+    origin.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(origin.hostname);
+  if (origin.protocol !== "https:" && !localHttp) {
+    throw new HTTPException(500, { message: "API_ORIGIN must use HTTPS" });
+  }
+  return origin;
+}
+
 async function loginRateLimit(c: {
   env: WebBindings;
   req: { header(name: string): string | undefined };
@@ -92,7 +108,7 @@ export function createWebApp(deps: WebAppDeps = { fetch: globalThis.fetch }) {
     if (!(await readSession(c.env.SESSIONS, cookieValue(c.req.header("cookie"), "session")))) {
       return c.json({ error: "session_expired" }, 401, { "cache-control": "no-store" });
     }
-    const origin = configured(c.env.API_ORIGIN, "API_ORIGIN");
+    const origin = apiOrigin(c.env.API_ORIGIN);
     const token = configured(c.env.API_TOKEN, "API_TOKEN");
     const requestUrl = new URL(c.req.url);
     const target = new URL(requestUrl.pathname.replace(/^\/api/, "") + requestUrl.search, origin);

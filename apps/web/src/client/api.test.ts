@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { ApiError, fillActivityDays, requestJson } from "./api.js";
+import { ApiError, createRequestTracker, fillActivityDays, requestJson } from "./api.js";
 
 test("API の 401 理由を利用者が取れるエラー種別へ写像する", async () => {
   await expect(
@@ -44,4 +44,13 @@ test("推移グラフ用に欠測日を 0 件で補完する", () => {
     { date: "2026-09-02", counts: { hint_used: 2 } },
     { date: "2026-09-03", counts: {} },
   ]);
+});
+
+test("新しい要求が始まると古い要求の状態更新を許可しない", () => {
+  const tracker = createRequestTracker();
+  const firstIsLatest = tracker.start();
+  const secondIsLatest = tracker.start();
+
+  expect(firstIsLatest()).toBe(false);
+  expect(secondIsLatest()).toBe(true);
 });

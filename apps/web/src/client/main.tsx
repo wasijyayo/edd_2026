@@ -1,15 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { ApiError, fillActivityDays, requestJson, type ActivityDay } from "./api.js";
+import {
+  ApiError,
+  createRequestTracker,
+  fillActivityDays,
+  requestJson,
+  type ActivityDay,
+} from "./api.js";
+import { summarizeConcepts, type Concept } from "./profile.js";
 import "./style.css";
 
-type Concept = {
-  conceptId: string;
-  label?: string;
-  status: "confirmed" | "learning" | "unobserved";
-  score: number;
-  evidence: { solvedIndependentlyCount: number; hintUsedCount: number };
-};
 type Profile = { derivedAt: string; eventCount: number; concepts: Concept[] };
 type Activity = { from: string; to: string; days: ActivityDay[] };
 
@@ -121,16 +121,22 @@ function Login() {
 function LearningMap() {
   const [profile, setProfile] = useState<Profile>();
   const [error, setError] = useState<ApiError>();
+  const requestTracker = useRef(createRequestTracker());
   const load = () => {
+    const isLatest = requestTracker.current.start();
     setError(undefined);
     requestJson<Profile>("/api/v1/learning-profile", fetch, takeLoginRetry())
-      .then(setProfile)
-      .catch((value: unknown) => setError(value as ApiError));
+      .then((value) => {
+        if (isLatest()) setProfile(value);
+      })
+      .catch((value: unknown) => {
+        if (isLatest()) setError(value as ApiError);
+      });
   };
   useEffect(load, []);
   if (error) return <ErrorPanel error={error} retry={load} />;
   if (!profile) return <p className="message">読み込み中…</p>;
-  const confirmed = profile.concepts.filter((item) => item.status === "confirmed").length;
+  const summary = summarizeConcepts(profile.concepts);
   if (profile.eventCount === 0)
     return (
       <>
@@ -141,10 +147,13 @@ function LearningMap() {
     <>
       <section className="summary">
         <div>
-          <strong>{confirmed}</strong>確認済み
+          <strong>{summary.confirmed}</strong>確認済み
         </div>
         <div>
-          <strong>{profile.concepts.length - confirmed}</strong>学習中
+          <strong>{summary.learning}</strong>学習中
+        </div>
+        <div>
+          <strong>{summary.unobserved}</strong>未観測
         </div>
         <button onClick={load}>再読み込み</button>
       </section>
@@ -154,7 +163,11 @@ function LearningMap() {
             <div>
               <h2>{item.label ?? item.conceptId}</h2>
               <span className={`status ${item.status}`}>
-                {item.status === "confirmed" ? "確認済み" : "学習中"}
+                {item.status === "confirmed"
+                  ? "確認済み"
+                  : item.status === "learning"
+                    ? "学習中"
+                    : "未観測"}
               </span>
             </div>
             <div className="meter">
@@ -207,11 +220,17 @@ function Activity() {
   const [period, setPeriod] = useState(30);
   const [activity, setActivity] = useState<Activity>();
   const [error, setError] = useState<ApiError>();
+  const requestTracker = useRef(createRequestTracker());
   const load = () => {
+    const isLatest = requestTracker.current.start();
     setError(undefined);
     requestJson<Activity>(`/api/v1/learning-activity?days=${period}`, fetch, takeLoginRetry())
-      .then(setActivity)
-      .catch((value: unknown) => setError(value as ApiError));
+      .then((value) => {
+        if (isLatest()) setActivity(value);
+      })
+      .catch((value: unknown) => {
+        if (isLatest()) setError(value as ApiError);
+      });
   };
   useEffect(load, [period]);
   if (error) return <ErrorPanel error={error} retry={load} />;

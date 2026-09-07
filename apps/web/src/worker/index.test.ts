@@ -71,3 +71,32 @@ test("セッションが無い /api は API に中継せず理由を区別する
   expect(response.status).toBe(401);
   await expect(response.json()).resolves.toEqual({ error: "session_expired" });
 });
+
+test("loopback 以外の HTTP API_ORIGIN へ API トークンを送らない", async () => {
+  let calls = 0;
+  const app = createWebApp({
+    fetch: async () => {
+      calls += 1;
+      return Response.json({});
+    },
+  });
+  const login = await app.request(
+    "https://web.example.test/login",
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ passphrase: "open-sesame" }),
+    },
+    env as unknown as CloudflareBindings,
+  );
+  const response = await app.request(
+    "https://web.example.test/api/v1/learning-profile",
+    {
+      headers: { cookie: login.headers.get("set-cookie") ?? "" },
+    },
+    { ...env, API_ORIGIN: "http://api.example.test" } as unknown as CloudflareBindings,
+  );
+
+  expect(response.status).toBe(500);
+  expect(calls).toBe(0);
+});
