@@ -2,5 +2,35 @@
   "name": "@gakushu-sochi/web",
   "version": "0.0.1",
   "private": true,
-  "description": "Learning Map と設定を提供するWeb App"
+  "type": "module",
+  "description": "Learning Map と設定を提供するWeb App",
+  "scripts": {
+    "dev": "npm run build && concurrently --kill-others-on-fail --names client,worker \"vite build --watch\" \"wrangler dev --port 8788\"",
+    "build": "tsc -p tsconfig.json && vite build",
+    "compile": "tsc -p tsconfig.json",
+    "lint": "eslint src",
+    "test:unit": "vitest run src",
+    "test:watch": "vitest src",
+    "gen:worker-types": "wrangler types src/worker/worker-configuration.d.ts --env-interface CloudflareBindings --include-runtime=false --strict-vars=false",
+    "check:worker-types": "wrangler types src/worker/worker-configuration.d.ts --env-interface CloudflareBindings --include-runtime=false --strict-vars=false --check"
+  },
+  "dependencies": {
+    "hono": "^4.13.7",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260905.1",
+    "@eslint/js": "^10.0.1",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.4",
+    "eslint": "^10.9.1",
+    "eslint-config-prettier": "^10.1.8",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.69.0",
+    "vite": "^8.0.2",
+    "vitest": "^5.0.0",
+    "wrangler": "^4.129.0"
+  }
 }

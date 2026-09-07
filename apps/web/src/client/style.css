@@ -1,0 +1,234 @@
+:root {
+  font-family: system-ui, sans-serif;
+  color: #1f2937;
+  background: #f8fafc;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+header {
+  height: 64px;
+  background: #0f172a;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 max(24px, calc((100% - 1100px) / 2));
+}
+.brand {
+  font-weight: 700;
+  color: #fff;
+  text-decoration: none;
+}
+.brand small {
+  opacity: 0.65;
+  font-weight: 400;
+}
+nav {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+}
+nav a,
+nav button {
+  color: #e2e8f0;
+  background: none;
+  border: 0;
+  text-decoration: none;
+  font: inherit;
+  cursor: pointer;
+}
+main {
+  max-width: 1100px;
+  margin: 48px auto;
+  padding: 0 24px;
+}
+.summary,
+.periods {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.summary div {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  min-width: 130px;
+}
+.summary strong {
+  font-size: 28px;
+  display: block;
+}
+.summary button,
+.periods button,
+.message button,
+form button {
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  background: #0f766e;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+.periods button {
+  background: #e2e8f0;
+  color: #334155;
+}
+.periods .selected {
+  background: #0f766e;
+  color: #fff;
+}
+.concepts {
+  display: grid;
+  gap: 12px;
+}
+.concept {
+  display: grid;
+  grid-template-columns: 1fr 2fr 60px;
+  gap: 14px;
+  align-items: center;
+  background: #fff;
+  border-radius: 12px;
+  padding: 18px;
+}
+.concept h2 {
+  font-size: 16px;
+  margin: 0 0 5px;
+}
+.concept p {
+  grid-column: 1/-1;
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+}
+.status {
+  font-size: 13px;
+}
+.confirmed {
+  color: #047857;
+}
+.learning {
+  color: #b45309;
+}
+.meter {
+  height: 9px;
+  background: #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.meter i {
+  display: block;
+  height: 100%;
+  background: #14b8a6;
+}
+footer {
+  margin-top: 24px;
+  color: #64748b;
+  font-size: 13px;
+}
+.message {
+  max-width: 700px;
+  margin: 80px auto;
+  background: #fff;
+  padding: 24px;
+  border-radius: 12px;
+}
+.error {
+  border-left: 4px solid #dc2626;
+}
+.login {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  margin: 0;
+}
+.card {
+  background: #fff;
+  padding: 36px;
+  border-radius: 16px;
+  width: min(420px, 100%);
+}
+.card h1 {
+  margin-top: 0;
+}
+.card form {
+  display: grid;
+  gap: 16px;
+}
+.card label {
+  display: grid;
+  gap: 6px;
+}
+.card input {
+  padding: 10px;
+  border: 1px solid #94a3b8;
+  border-radius: 8px;
+  font: inherit;
+}
+.error-text {
+  color: #b91c1c;
+  margin: 0;
+}
+.chart {
+  height: 320px;
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: end;
+  gap: 3px;
+}
+.bar {
+  height: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-start;
+  min-width: 3px;
+}
+.bar i {
+  display: block;
+  width: 100%;
+}
+.solved_independently {
+  background: #14b8a6;
+}
+.hint_used {
+  background: #f59e0b;
+}
+.error_recurred {
+  background: #ef4444;
+}
+.legend {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: #475569;
+}
+.legend i {
+  width: 12px;
+  height: 12px;
+  display: inline-block;
+}
+@media (max-width: 600px) {
+  .concept {
+    grid-template-columns: 1fr 45px;
+  }
+  .meter {
+    grid-column: 1/-1;
+  }
+  .summary {
+    flex-wrap: wrap;
+  }
+  header {
+    padding: 0 16px;
+  }
+  nav {
+    gap: 10px;
+  }
+}

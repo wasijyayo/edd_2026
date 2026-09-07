@@ -6,16 +6,25 @@ const packageJson = JSON.parse(await readFile(new URL("../package.json", import.
 const extensionPackageJson = JSON.parse(
   await readFile(new URL("../apps/vscode-extension/package.json", import.meta.url), "utf8"),
 );
+const webPackageJson = JSON.parse(
+  await readFile(new URL("../apps/web/package.json", import.meta.url), "utf8"),
+);
 
-test("dev は API と Desktop を失敗時に連携して並列起動する", () => {
+test("dev は API・Desktop・Web を失敗時に連携して並列起動する", () => {
   assert.match(packageJson.scripts.dev, /concurrently/);
   assert.match(packageJson.scripts.dev, /--kill-others-on-fail/);
   assert.match(packageJson.scripts.dev, /@gakushu-sochi\/api/);
   assert.match(packageJson.scripts.dev, /@gakushu-sochi\/desktop/);
+  assert.match(packageJson.scripts.dev, /@gakushu-sochi\/web/);
 });
 
 test("ルートのテストは package scripts の契約も検証する", () => {
   assert.match(packageJson.scripts.test, /test:package-scripts/);
+});
+
+test("Web の開発サーバーは API とポートを分け、Worker 経由で配信する", () => {
+  assert.match(webPackageJson.scripts.dev, /wrangler dev/);
+  assert.match(webPackageJson.scripts.dev, /--port 8788/);
 });
 
 test("VS Code Extension はコンパイル後に VSIX を生成できる", () => {
