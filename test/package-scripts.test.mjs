@@ -19,7 +19,10 @@ test("ルートのテストは package scripts の契約も検証する", () => 
 });
 
 test("VS Code Extension はコンパイル後に VSIX を生成できる", () => {
-  assert.match(extensionPackageJson.scripts.package, /^npm run compile && /);
-  assert.match(extensionPackageJson.scripts.package, /@vscode\/vsce package/);
-  assert.match(extensionPackageJson.scripts.package, /--no-dependencies/);
+  assert.equal(
+    extensionPackageJson.scripts.package,
+    "npm run compile && npx --no-install @vscode/vsce package --no-dependencies",
+  );
+  // npx --no-install はローカル依存のみを実行するため、lockfile 固定のバージョンが必須。
+  assert.equal(extensionPackageJson.devDependencies["@vscode/vsce"], "3.9.2");
 });

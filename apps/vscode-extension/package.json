@@ -60,7 +60,7 @@
   },
   "scripts": {
     "compile": "tsc -p ./",
-    "package": "npm run compile && npx @vscode/vsce package --no-dependencies",
+    "package": "npm run compile && npx --no-install @vscode/vsce package --no-dependencies",
     "test:unit": "vitest run src/test",
     "test:watch": "vitest src/test",
     "test": "npm run test:unit",
@@ -77,6 +77,7 @@
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.0.0",
     "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "3.9.2",
     "eslint": "^10.9.1",
     "eslint-config-prettier": "^10.1.8",
     "lefthook": "^2.1.12",
