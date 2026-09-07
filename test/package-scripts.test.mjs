@@ -6,6 +6,9 @@ const packageJson = JSON.parse(await readFile(new URL("../package.json", import.
 const extensionPackageJson = JSON.parse(
   await readFile(new URL("../apps/vscode-extension/package.json", import.meta.url), "utf8"),
 );
+const apiPackageJson = JSON.parse(
+  await readFile(new URL("../apps/api/package.json", import.meta.url), "utf8"),
+);
 const webPackageJson = JSON.parse(
   await readFile(new URL("../apps/web/package.json", import.meta.url), "utf8"),
 );
@@ -36,6 +39,10 @@ test("Web の本番アセットを hook と CI でビルド検証する", () => 
 });
 
 test("main への push は検証後に API と Web を順にデプロイする", () => {
+  assert.equal(
+    apiPackageJson.scripts.deploy,
+    "npm run compile --workspace=@gakushu-sochi/domain && wrangler deploy",
+  );
   assert.equal(webPackageJson.scripts.deploy, "npm run build && wrangler deploy");
   assert.match(ci, /deploy:\n\s+name: Deploy Workers/);
   assert.match(ci, /needs: verify/);
