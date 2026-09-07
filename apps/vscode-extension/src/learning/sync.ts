@@ -18,7 +18,7 @@ import type { LearningEvent } from "@gakushu-sochi/domain";
 
 /** 同期に使う設定。VS Codeの設定（package.jsonのcontributes.configuration）から読む値をここへ集約する。 */
 export interface SyncConfig {
-  /** 例: https://gakushu-sochi-api.meganekaitai.workers.dev */
+  /** 例: https://gakushu-sochi-api.uozumi05.workers.dev */
   apiBaseUrl: string;
   /** `Authorization: Bearer <token>` に使う。開発用トークンで暫定運用中（docs/architecture.md）。 */
   apiToken: string;
