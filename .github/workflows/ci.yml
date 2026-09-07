@@ -39,3 +39,35 @@ jobs:
         run: npm run build:web
       - name: Run tests
         run: npm run test
+
+  deploy:
+    name: Deploy Workers
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency:
+      group: workers-production
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.20.0
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Require Cloudflare deployment credential
+        run: test -n "$CLOUDFLARE_API_TOKEN"
+      - name: Apply D1 migrations
+        run: npm run migrate:remote --workspace=@gakushu-sochi/api
+      - name: Deploy API Worker
+        run: npm run deploy --workspace=@gakushu-sochi/api
+      - name: Deploy Web Worker
+        run: npm run deploy --workspace=@gakushu-sochi/web

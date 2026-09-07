@@ -13,5 +13,7 @@ npm run build --workspace=@gakushu-sochi/web
 `WEB_ACCESS_PASSPHRASE` を設定する。`API_TOKEN` は API 側の `DEV_AUTH_TOKEN` と**同じ値**にする。
 これらの値は Worker の secret であり、ブラウザへ送ってはならない。
 
-デプロイ前に KV namespace を作成して `wrangler.jsonc` の `SESSIONS` の ID を置き換える。
-本番では `API_TOKEN` と `WEB_ACCESS_PASSPHRASE` を `wrangler secret put` で設定する。
+セッション用 KV namespace は `wrangler.jsonc` に登録済みである。本番では `API_TOKEN` と
+`WEB_ACCESS_PASSPHRASE` を `wrangler secret put` で設定する。GitHub Actions による CD には、
+対象 Cloudflare アカウントへ必要最小限にスコープした `CLOUDFLARE_API_TOKEN` を GitHub の
+`production` environment secret として設定する。

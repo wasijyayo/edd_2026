@@ -35,6 +35,16 @@ test("Web の本番アセットを hook と CI でビルド検証する", () => 
   assert.match(ci, /name: Build Web assets\n\s+run: npm run build:web/);
 });
 
+test("main への push は検証後に API と Web を順にデプロイする", () => {
+  assert.equal(webPackageJson.scripts.deploy, "npm run build && wrangler deploy");
+  assert.match(ci, /deploy:\n\s+name: Deploy Workers/);
+  assert.match(ci, /needs: verify/);
+  assert.match(ci, /github\.event_name == 'push'/);
+  assert.match(ci, /npm run migrate:remote --workspace=@gakushu-sochi\/api/);
+  assert.match(ci, /npm run deploy --workspace=@gakushu-sochi\/api/);
+  assert.match(ci, /npm run deploy --workspace=@gakushu-sochi\/web/);
+});
+
 test("VS Code Extension はコンパイル後に VSIX を生成できる", () => {
   assert.equal(
     extensionPackageJson.scripts.package,
