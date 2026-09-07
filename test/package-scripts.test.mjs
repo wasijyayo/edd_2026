@@ -9,6 +9,8 @@ const extensionPackageJson = JSON.parse(
 const webPackageJson = JSON.parse(
   await readFile(new URL("../apps/web/package.json", import.meta.url), "utf8"),
 );
+const lefthook = await readFile(new URL("../lefthook.yml", import.meta.url), "utf8");
+const ci = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
 
 test("dev は API・Desktop・Web を失敗時に連携して並列起動する", () => {
   assert.match(packageJson.scripts.dev, /concurrently/);
@@ -25,6 +27,12 @@ test("ルートのテストは package scripts の契約も検証する", () => 
 test("Web の開発サーバーは API とポートを分け、Worker 経由で配信する", () => {
   assert.match(webPackageJson.scripts.dev, /wrangler dev/);
   assert.match(webPackageJson.scripts.dev, /--port 8788/);
+});
+
+test("Web の本番アセットを hook と CI でビルド検証する", () => {
+  assert.equal(packageJson.scripts["build:web"], "npm run build --workspace=@gakushu-sochi/web");
+  assert.match(lefthook, /web-build:\n\s+run: npm run build:web/);
+  assert.match(ci, /name: Build Web assets\n\s+run: npm run build:web/);
 });
 
 test("VS Code Extension はコンパイル後に VSIX を生成できる", () => {

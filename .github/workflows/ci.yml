@@ -35,5 +35,7 @@ jobs:
         run: npm run check:concepts
       - name: Check generated Worker types
         run: npm run check:worker-types
+      - name: Build Web assets
+        run: npm run build:web
       - name: Run tests
         run: npm run test
