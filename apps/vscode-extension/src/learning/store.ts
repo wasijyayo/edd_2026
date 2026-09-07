@@ -6,6 +6,7 @@
  * 使える LearnerProfile を受け取れるようにする。
  */
 
+import { randomUUID } from "node:crypto";
 import * as vscode from "vscode";
 import {
   applyEvent,
@@ -115,4 +116,26 @@ export async function recordEvent(
   const updated = applyEvent(profile, event);
   await saveProfile(context, updated, onError);
   return updated;
+}
+
+/** この端末を識別するIDをglobalStateに保存するキー。 */
+const CLIENT_ID_KEY = "gakushuSochi.clientId";
+
+/**
+ * この端末を識別するIDを取得する。無ければ新しく作って保存する。
+ *
+ * サーバー側の userId（認証トークンから決まる、誰か）とは別物で、
+ * 同じユーザーが複数端末を使ったときにどちらから届いたイベントかを
+ * 区別するためのものである（apps/api/migrations/0001_initial.sql の devices）。
+ * ユーザーIDと違い秘密情報ではないため、平文でglobalStateへ保存してよい。
+ */
+export async function getOrCreateClientId(context: vscode.ExtensionContext): Promise<string> {
+  const existing = context.globalState.get<string>(CLIENT_ID_KEY);
+  if (typeof existing === "string" && existing.length > 0) {
+    return existing;
+  }
+
+  const clientId = randomUUID();
+  await context.globalState.update(CLIENT_ID_KEY, clientId);
+  return clientId;
 }

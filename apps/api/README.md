@@ -42,4 +42,29 @@ npx wrangler d1 migrations apply gakushu-sochi --remote
 ```
 
 `wrangler.jsonc` の `database_id` は `wrangler d1 create gakushu-sochi` の出力で埋める。
-作成済みなら `npx wrangler d1 list` で確認できる。
+作成済みなら `npx wrangler d1 list` で確認できる。ただし下記のとおり D1 は
+デプロイ先アカウントのものを指す必要があるため、各自の環境で作り直して
+`database_id` を書き換えてはならない。
+
+## デプロイ先（メンバー間で統一する）
+
+本番は**1つのアカウントに固定**する。`wrangler.jsonc` の `account_id` がそれを強制する。
+
+| 項目       | 値                                               |
+| ---------- | ------------------------------------------------ |
+| Worker URL | `https://gakushu-sochi-api.uozumi05.workers.dev` |
+| account_id | `996d4f5f54227fcc10dd15a2baee0a5b`               |
+
+`.workers.dev` のホスト名は `<worker名>.<アカウントのサブドメイン>.workers.dev` であり、
+`account_id` を書かないと各自のアカウントへデプロイされて URL が分岐する。
+`database_id` も同じくアカウントに紐づくため、URL と D1 は必ずセットで扱う。
+
+デプロイには対象アカウントの権限が必要になる。権限が無い状態で
+`npm run deploy` すると認証エラーになる（別アカウントへ野良デプロイされない）。
+`apps/vscode-extension` の既定値 `gakushuSochi.api.baseUrl` は上記 URL に揃えてある
+（配布先の利用者がそのまま本番を向くため）。一方 `apps/desktop` の既定値は
+`http://localhost:8787` のままにしてある。リポジトリルートの `npm run dev` が
+API と desktop を同時に起動する開発用の組み合わせで、ここを本番 URL にすると
+ローカル API が使われなくなるため。本番を向けたい場合は desktop の設定画面で変更する。
+
+このアカウントへのデプロイ権限は uozumi05（アカウント所有者）が招待して付与する。
