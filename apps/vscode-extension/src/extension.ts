@@ -92,20 +92,26 @@ export function activate(context: vscode.ExtensionContext): void {
       return;
     }
 
-    const clientId = await getOrCreateClientId(context);
-    const outcome = await syncEvent(event, {
-      apiBaseUrl,
-      apiToken: config.get<string>("api.token", ""),
-      clientId,
-    });
+    // clientId の採番・保存や応答処理で例外が出ても、質問フローは止めない。
+    // ローカル保存の失敗と同じくログに残すだけにする。
+    try {
+      const clientId = await getOrCreateClientId(context);
+      const outcome = await syncEvent(event, {
+        apiBaseUrl,
+        apiToken: config.get<string>("api.token", ""),
+        clientId,
+      });
 
-    if (!outcome.ok) {
-      channel.appendLine(`クラウド同期に失敗しました: ${outcome.reason}`);
-      return;
+      if (!outcome.ok) {
+        channel.appendLine(`クラウド同期に失敗しました: ${outcome.reason}`);
+        return;
+      }
+      channel.appendLine(
+        `クラウド同期: ${outcome.status}${outcome.reason ? `（${outcome.reason}）` : ""}`,
+      );
+    } catch (error) {
+      channel.appendLine(`クラウド同期に失敗しました: ${String(error)}`);
     }
-    channel.appendLine(
-      `クラウド同期: ${outcome.status}${outcome.reason ? `（${outcome.reason}）` : ""}`,
-    );
   }
 
   /** 文脈を保持して、最初の質問を入力済みの Gakushu Sochi Chat を開く。 */

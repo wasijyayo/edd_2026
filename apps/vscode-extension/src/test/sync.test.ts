@@ -120,3 +120,86 @@ test("resultsが空ならサーバー不整合として失敗を返す", async (
 
   expect(outcome.ok).toBe(false);
 });
+
+test("httpのリモートURLはトークンを送らずに拒否する", async () => {
+  const fetchMock = vi.fn();
+  vi.stubGlobal("fetch", fetchMock);
+
+  const outcome = await syncEvent(EVENT, { ...CONFIG, apiBaseUrl: "http://api.example.com" });
+
+  expect(outcome).toEqual({ ok: false, reason: expect.stringContaining("安全ではありません") });
+  expect(fetchMock).not.toHaveBeenCalled();
+});
+
+test("ローカル開発のhttpは許可する", async () => {
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValue(new Response(JSON.stringify({ results: [{ status: "accepted" }] })));
+  vi.stubGlobal("fetch", fetchMock);
+
+  const outcome = await syncEvent(EVENT, { ...CONFIG, apiBaseUrl: "http://localhost:8787" });
+
+  expect(outcome).toEqual({ ok: true, status: "accepted", reason: undefined });
+  expect(fetchMock).toHaveBeenCalledWith(
+    "http://localhost:8787/v1/learning-events:sync",
+    expect.anything(),
+  );
+});
+
+test("URLとして壊れていれば送らない", async () => {
+  const fetchMock = vi.fn();
+  vi.stubGlobal("fetch", fetchMock);
+
+  const outcome = await syncEvent(EVENT, { ...CONFIG, apiBaseUrl: "not a URL" });
+
+  expect(outcome.ok).toBe(false);
+  expect(fetchMock).not.toHaveBeenCalled();
+});
+
+test("リダイレクトを追跡せずタイムアウトを設定する", async () => {
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValue(new Response(JSON.stringify({ results: [{ status: "accepted" }] })));
+  vi.stubGlobal("fetch", fetchMock);
+
+  await syncEvent(EVENT, CONFIG);
+
+  const init = fetchMock.mock.calls[0][1] as RequestInit;
+  expect(init.redirect).toBe("error");
+  expect(init.signal).toBeInstanceOf(AbortSignal);
+});
+
+test("応答本文が壊れていても例外にせず失敗を返す", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("not json", { status: 200 })));
+
+  const outcome = await syncEvent(EVENT, CONFIG);
+
+  expect(outcome.ok).toBe(false);
+});
+
+test("resultsが配列でなければ失敗を返す", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(new Response(JSON.stringify({ results: null }), { status: 200 })),
+  );
+
+  const outcome = await syncEvent(EVENT, CONFIG);
+
+  expect(outcome).toEqual({ ok: false, reason: expect.stringContaining("results") });
+});
+
+test("fetchがハングしてもタイムアウトで解決する", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockImplementation((_url: string, init: RequestInit) => {
+      // 応答が返らないまま signal の中断だけを待つ、ハングしたサーバーを模す。
+      return new Promise((_resolve, reject) => {
+        init.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+      });
+    }),
+  );
+
+  const outcome = await syncEvent(EVENT, CONFIG);
+
+  expect(outcome.ok).toBe(false);
+}, 20_000);

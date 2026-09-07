@@ -223,6 +223,19 @@ export class VSCodeLMProvider implements AIProvider {
    */
   constructor(private readonly onDebug?: (message: string) => void) {}
 
+  /**
+   * デバッグ出力の失敗を質問処理へ波及させない。
+   * onDebug は呼び出し側から渡される任意のコールバックで、ここでの出力は
+   * あくまで補助情報である。その失敗で回答そのものを落としてはならない。
+   */
+  private debug(message: string): void {
+    try {
+      this.onDebug?.(message);
+    } catch {
+      // 出力先が壊れている場合に報告する手段が無いため、ここは握って続行する。
+    }
+  }
+
   async ask(request: AIRequest): Promise<AIResponse> {
     try {
       const models = await vscode.lm.selectChatModels();
@@ -253,11 +266,11 @@ export class VSCodeLMProvider implements AIProvider {
         raw += chunk;
       }
 
-      this.onDebug?.(`--- AIの生の応答（model: ${model.id}） ---\n${raw}`);
+      this.debug(`--- AIの生の応答（model: ${model.id}） ---\n${raw}`);
 
       const parsed = parseAnswer(raw);
 
-      this.onDebug?.(
+      this.debug(
         `--- Concept抽出結果 ---\nconceptIds: ${JSON.stringify(parsed.conceptIds)}\nresolution: ${String(parsed.resolution)}`,
       );
 

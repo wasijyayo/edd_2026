@@ -62,6 +62,7 @@
       "properties": {
         "gakushuSochi.api.baseUrl": {
           "type": "string",
+          "scope": "machine",
           "default": "https://gakushu-sochi-api.uozumi05.workers.dev",
           "description": "学習イベントを同期するAPIサーバーのURL。空にすると同期を行わずローカル保存のみになる。"
         },
