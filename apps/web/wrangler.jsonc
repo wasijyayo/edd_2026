@@ -4,6 +4,7 @@
   "account_id": "996d4f5f54227fcc10dd15a2baee0a5b",
   "main": "src/worker/index.ts",
   "compatibility_date": "2026-09-05",
+  "compatibility_flags": ["global_fetch_strictly_public"],
   "assets": {
     "directory": "./dist/client",
     "binding": "ASSETS",
