@@ -52,7 +52,7 @@ test("ログイン後だけ /api を API トークン付きで中継する", asy
   expect(response.status).toBe(200);
   expect(received[0]?.url).toBe("https://api.example.test/v1/learning-profile");
   expect(received[0]?.headers.get("authorization")).toBe("Bearer api-token");
-  expect(received[0]?.headers.get("host")).toBeNull();
+  expect(received[0]?.headers.get("host")).toBe("api.example.test");
   expect(response.headers.get("cache-control")).toBe("no-store");
 });
 
