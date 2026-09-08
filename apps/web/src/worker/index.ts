@@ -117,6 +117,7 @@ export function createWebApp(
     const headers = new Headers(c.req.raw.headers);
     headers.set("authorization", `Bearer ${token}`);
     headers.delete("cookie");
+    headers.delete("host");
     const upstream = await deps.fetch(target, {
       method: c.req.method,
       headers,

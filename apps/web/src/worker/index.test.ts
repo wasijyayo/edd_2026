@@ -45,13 +45,14 @@ test("ログイン後だけ /api を API トークン付きで中継する", asy
   expect(cookie).toContain("HttpOnly");
   const response = await app.request(
     "https://web.example.test/api/v1/learning-profile",
-    { headers: { cookie: cookie ?? "" } },
+    { headers: { cookie: cookie ?? "", host: "web.example.test" } },
     env as unknown as CloudflareBindings,
   );
 
   expect(response.status).toBe(200);
   expect(received[0]?.url).toBe("https://api.example.test/v1/learning-profile");
   expect(received[0]?.headers.get("authorization")).toBe("Bearer api-token");
+  expect(received[0]?.headers.get("host")).toBeNull();
   expect(response.headers.get("cache-control")).toBe("no-store");
 });
 
