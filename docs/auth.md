@@ -222,9 +222,38 @@ WebCrypto は Node にあるので `test:unit` は素の vitest のまま保て�
 | Web               | Authorization Code + PKCE（Worker が交換）       | KV（session → Refresh Token）                      | `WEB_ACCESS_PASSPHRASE` + 共有 `API_TOKEN`                                               |
 | API Server        | 検証のみ                                         | —                                                  | `DEV_AUTH_TOKEN`                                                                         |
 
+**Auth/01 で登録した実体**（テナント `gakushu-sochi.jp.auth0.com` / JP リージョン）。
+`client_id` は秘密ではない（公開クライアントは配布物に埋め込まれる）ため、ここに残す。
+
+| 用途    | Auth0 種別    | client_id                          | grant                                  | token endpoint auth  |
+| ------- | ------------- | ---------------------------------- | -------------------------------------- | -------------------- |
+| VS Code | `native`      | `QkzWUVBYTbVYoye8SbHxaKbam6sSj014` | `device_code` + `refresh_token`        | `none`（public）     |
+| Desktop | `native`      | `r9zPMIsOS9qezfcLkDQq6HC423e0ui0x` | `authorization_code` + `refresh_token` | `none`（public）     |
+| Web     | `regular_web` | `EGkN3vMFwcfzJ9RdMDdlIa14OTbgnwRp` | `authorization_code` + `refresh_token` | `client_secret_post` |
+
+API（audience）は `https://api.gakushu-sochi.dev`。`allow_offline_access: true`、
+アクセストークンの寿命は 900 秒（§2.3 の「15分」）、署名は RS256。
+
+**`allow_offline_access: true` は Refresh Token 発行の必要条件であって十分条件ではない。**
+テナント側でこれを有効にしたうえで、**クライアント側が各認可要求の `scope` に
+`offline_access` を含める**必要がある。片方だけでは Refresh Token は返らない。
+3クライアントとも §5.1〜§5.3 で個別に指定している。
+
+**Web だけ confidential client である。** Worker がサーバー側で認可コードを交換するため
+（§5.3）、client secret を持てる。VS Code と Desktop は配布物に secret を隠せないので
+public client + PKCE / Device Flow にする。Web の secret は `wrangler secret put` で
+`AUTH_CLIENT_SECRET` として入れる（Auth/05）。
+
+なお **Auth0 は public client にも `client_secret` を発行する**（VS Code / Desktop にも
+値が存在する）。`token_endpoint_auth_method` が `none` なので認証には使われないが、
+**この2つの secret は使わない。** 配布物に埋め込めば公開されるものであり、
+これに依存した実装をすると public client の前提（§9）が崩れる。
+
 ### 5.1 VS Code Extension
 
-1. `POST /oauth/device/code` で `user_code` と `verification_uri` を得る
+1. `POST /oauth/device/code` で `user_code` と `verification_uri` を得る。
+   **`scope` に `offline_access` を含める**（含めないと Refresh Token が返らず、
+   手順4が成立しない）。`audience` に §5 の API identifier を指定する
 2. VS Code の通知に `user_code` を出し、`vscode.env.openExternal` で
    `verification_uri` を開く（**Device Flow はクライアントへ戻るリダイレクトを持たない。
    これが Remote-SSH や devcontainer で成立する理由であり、loopback との決定的な違いである**）
@@ -243,6 +272,8 @@ WebCrypto は Node にあるので `test:unit` は素の vitest のまま保て�
 （RFC 8252 が禁じている。アプリがユーザーの資格情報入力画面を覗ける）。
 リダイレクトは `http://127.0.0.1:<ランダムポート>/callback`。
 `state` を検証し、PKCE の `code_verifier` はメモリに持つ。
+**認可要求の `scope` に `offline_access` を含める**（含めないと Refresh Token が返らず、
+次行の保存対象が存在しなくなる）。`audience` に §5 の API identifier を指定する。
 Refresh Token は既存の `createCredentialStore` にそのまま載る。
 `crypto.isAvailable()` が false のとき例外を投げる現在の挙動を維持する
 （安全に保存できないなら、保存しないのではなく失敗させる）。
@@ -252,6 +283,9 @@ Refresh Token は既存の `createCredentialStore` にそのまま載る。
 `app.all("/api/*")` が共有 `API_TOKEN` を注入している箇所を、
 **セッションに紐づくユーザーのアクセストークン**の注入へ変える。
 
+- **認可要求の `scope` に `offline_access` を含める。** `/login` から IdP へ飛ばすときに
+  含めないと Refresh Token が返らず、KV に保存する対象（下記）が存在しなくなる。
+  `audience` には §5 の API identifier を指定する
 - **`state` を検証する。** `/login` で乱数の `state` を作り、短命の pre-session Cookie に
   紐付けて保存する。`/callback` では受け取った `state` と保存値が一致することを
   **Refresh Token を保存する前に**確かめ、違えば中断する。
@@ -273,9 +307,21 @@ Refresh Token は既存の `createCredentialStore` にそのまま載る。
   同時に来ると両方が同時に refresh し、片方が取得した新しい RT をもう片方が
   古い値で上書きして、利用者がランダムにログアウトする。
   セッション単位で single-flight にし、KV へ書き戻すときに**新しい方を消さない**。
-  rotation の有無と有効期間・reuse interval（leeway）は Auth/01 で固定する。
-  **非 rotation を選ぶ場合、ここの競合対策は不要になる**ので併せて書き換える。
-  実装手段（Durable Object を使うか、KV の楽観的更新で足りるか）は Auth/05 で決める
+  実装手段（Durable Object を使うか、KV の楽観的更新で足りるか）は Auth/05 で決める。
+
+  **Auth/01 で固定した値（3アプリ共通）**:
+
+  | 項目                       | 値                   | 理由                                                                  |
+  | -------------------------- | -------------------- | --------------------------------------------------------------------- |
+  | `rotation_type`            | `rotating`           | 撤回可能性を保つ（§2.3）。回すたびに古い RT が無効になる              |
+  | `expiration_type`          | `expiring`           | rotation に必須。既定の `non-expiring` だと下の有効期間が無視される   |
+  | `leeway`（reuse interval） | **30 秒**            | 0 だと再送1回で RT ファミリ全体が失効し、利用者が強制ログアウトになる |
+  | `token_lifetime`（絶対）   | 2,592,000 秒（30日） | 30日触らなければ再ログイン                                            |
+  | `idle_token_lifetime`      | 1,209,600 秒（14日） | VS Code は週数回の利用を想定。短すぎると再認可が頻発する              |
+
+  **rotation を選んだので、上記の single-flight は必須である。**
+  `leeway` 30 秒は競合を緩和するが、解消はしない。並行 refresh が leeway を
+  超えてずれた場合は依然として RT ファミリが失効するため、直列化を省略できない。
 
 これに伴う波及:
 
