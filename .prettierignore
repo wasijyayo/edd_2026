@@ -2,3 +2,9 @@ out
 node_modules
 package-lock.json
 apps/api/src/worker-configuration.d.ts
+
+# エージェント用スキルの取得物。自分たちが書いたコードではないので整形対象にしない
+# （prettier が解析に失敗するファイルも含まれ、format:check 全体が落ちる）
+.agents/skills
+.claude/skills
+skills-lock.json

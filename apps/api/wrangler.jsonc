@@ -17,6 +17,16 @@
     // 認証付きの API なので "*" にしない。空なら誰も許可しない。
     "CORS_ALLOWED_ORIGINS": "",
     "GEMINI_MODEL": "gemini-3.6-flash",
+    // Auth0 の issuer。OIDC Discovery が返す値をそのまま置く（末尾スラッシュ必須）。
+    // docs/auth.md §4 はこの値と Discovery 文書の `issuer` の一致を要求するため、
+    // 手で書き換えず .well-known/openid-configuration の値を使う。
+    "AUTH_ISSUER": "https://gakushu-sochi.jp.auth0.com/",
+    // 自 API の audience。これを検証しないと同一テナントの別アプリ向けトークンで
+    // この API を呼べる（docs/auth.md §4）。
+    "AUTH_AUDIENCE": "https://api.gakushu-sochi.dev",
+    // JWKS の URL は意図的に設定項目にしない。AUTH_ISSUER の OIDC Discovery から
+    // 導出する（docs/auth.md §4）。設定可能にすると取得先だけを差し替える誤設定が
+    // 成立し、任意の鍵で署名したトークンが通る。
   },
   // 必要な秘密情報の「名前」を宣言する。値はここに書かない
   // （`wrangler secret put` で設定する。apps/api/README.md）。
