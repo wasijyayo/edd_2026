@@ -52,6 +52,13 @@ test("main への push は検証後に API と Web を順にデプロイする",
   assert.match(ci, /npm run deploy --workspace=@gakushu-sochi\/web/);
 });
 
+test("Web の初回 deploy は required secrets を secrets file で渡す", () => {
+  assert.match(ci, /WEB_API_TOKEN: \$\{\{ secrets\.WEB_API_TOKEN \}\}/);
+  assert.match(ci, /WEB_ACCESS_PASSPHRASE: \$\{\{ secrets\.WEB_ACCESS_PASSPHRASE \}\}/);
+  assert.match(ci, /name: Require Web Worker secrets/);
+  assert.match(ci, /--secrets-file "\$secrets_file"/);
+});
+
 test("VS Code Extension はコンパイル後に VSIX を生成できる", () => {
   assert.equal(
     extensionPackageJson.scripts.package,

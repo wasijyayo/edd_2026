@@ -59,7 +59,9 @@ async function loginRateLimit(c: {
     throw new HTTPException(429, { message: "too many login attempts" });
 }
 
-export function createWebApp(deps: WebAppDeps = { fetch: globalThis.fetch }) {
+export function createWebApp(
+  deps: WebAppDeps = { fetch: (input, init) => globalThis.fetch(input, init) },
+) {
   const app = new Hono<{ Bindings: WebBindings }>();
 
   app.onError((error, c) => {
@@ -115,6 +117,7 @@ export function createWebApp(deps: WebAppDeps = { fetch: globalThis.fetch }) {
     const headers = new Headers(c.req.raw.headers);
     headers.set("authorization", `Bearer ${token}`);
     headers.delete("cookie");
+    headers.set("host", origin.host);
     const upstream = await deps.fetch(target, {
       method: c.req.method,
       headers,
