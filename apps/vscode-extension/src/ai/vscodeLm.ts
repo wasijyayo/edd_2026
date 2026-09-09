@@ -12,6 +12,7 @@
 
 import * as vscode from "vscode";
 import type { AIProvider } from "./provider";
+import { buildPrompt, META_MARKER } from "./prompt";
 import {
   CONCEPTS,
   type AIError,
@@ -30,9 +31,6 @@ import {
  */
 const DEFAULT_FAMILY = "gpt-4o-mini";
 
-/** 既知の ConceptId 一覧。AIが存在しないIDを捏造した場合に弾くために使う。 */
-const KNOWN_CONCEPT_IDS = new Set(CONCEPTS.map((concept) => concept.id));
-
 /**
  * プロンプトに含める過去の会話ターン数の上限。
  *
@@ -49,28 +47,13 @@ const MAX_HISTORY_TURNS = 10;
  * ユーザーへ表示する前にここで切り離すため、Markdownとして自然に読める記号は避け、
  * 通常の説明文には出てこない専用の文字列にする。
  */
-const META_MARKER = "<<code-companion-meta>>";
-
-/**
- * VS Code の languageId を Concept ID の言語プレフィックスへ対応付ける。
- *
- * TypeScript は JavaScript の上位互換であり、変数・関数・非同期処理などの共通概念を
- * `js.*` と `ts.*` に二重登録すると習熟度が分散する。そのため JavaScript の質問も
- * `ts.*` の Concept 体系にまとめる。
- */
-function conceptLanguageFor(languageId: string): string {
-  if (languageId === "typescript" || languageId === "javascript") {
-    return "ts";
-  }
-  return languageId;
-}
+const KNOWN_CONCEPT_IDS = new Set(CONCEPTS.map((concept) => concept.id));
 
 /** AIRequest を LanguageModelChatMessage の配列へ変換する。 */
 function toMessages(request: AIRequest): vscode.LanguageModelChatMessage[] {
   // 直近 MAX_HISTORY_TURNS 件だけを使う。長い会話をそのまま送り続けると
   // リクエストが際限なく重くなり、モデルのコンテキスト長を超えかねない。
   const history = (request.history ?? []).slice(-MAX_HISTORY_TURNS);
-  const hasHistory = history.length > 0;
 
   const historyMessages = history.map((turn) =>
     turn.role === "user"
@@ -78,70 +61,7 @@ function toMessages(request: AIRequest): vscode.LanguageModelChatMessage[] {
       : vscode.LanguageModelChatMessage.Assistant(turn.text),
   );
 
-  const lines: string[] = [
-    request.mode === "hint"
-      ? "次に試す一手だけを示してください。答えそのものは書かないでください。"
-      : "このコードの意味・なぜそう書くのか・どこを見るべきかを解説してください。",
-    "",
-    "--- コード ---",
-    request.context.code,
-  ];
-
-  if (request.context.surroundingCode) {
-    lines.push("", "--- 前後のコード ---", request.context.surroundingCode);
-  }
-
-  if (request.diagnostics && request.diagnostics.length > 0) {
-    lines.push("", "--- 関連するエラー ---", ...request.diagnostics);
-  }
-
-  if (request.question) {
-    lines.push("", "--- 質問 ---", request.question);
-  }
-
-  // この言語で定義済みのConceptだけを渡す。渡さないと、モデルは正確なID文字列
-  // （例: go.variable_declaration）を知らないまま「存在しないIDを作るな」という
-  // 指示と板挟みになり、話題が一致していても空配列を返しがちになる
-  // （実機で確認済み: 短縮変数宣言の話をしていたのに、IDを提示していなかったため
-  // conceptIds が空で返ってきた）。languageId が無い（Lv1）場合は絞り込めないため渡さない。
-  const knownConcepts = request.context.languageId
-    ? CONCEPTS.filter(
-        (concept) => concept.language === conceptLanguageFor(request.context.languageId!),
-      )
-    : [];
-  if (knownConcepts.length > 0) {
-    lines.push(
-      "",
-      "--- 既知の概念一覧（id: 説明） ---",
-      ...knownConcepts.map((concept) => `${concept.id}: ${concept.label}`),
-    );
-  }
-
-  // 本文の下に、ユーザーには見せないメタ情報をJSONで出させる。
-  // 学習イベントの記録（MVP/02 #23）が、どのConceptの話か・理解が解消されたかを
-  // 判断する材料に使う。会話に表示する内容とは別物なので、通常の説明文の後に
-  // マーカー付きで書かせて、受け取り側（parseAnswer）で切り離す。
-  lines.push(
-    "",
-    "--- 出力形式 ---",
-    `本文を書き終えたら、必ず最後に ${META_MARKER} という行を書き、続けてJSONを1つだけ書いてください。`,
-    '形式: {"conceptIds": ["関係する概念のID。分からなければ空配列"], "resolution": "resolved か unclear"}',
-    knownConcepts.length > 0
-      ? "conceptIds には、上記の「既知の概念一覧」に載っているIDの中から今回の話題に一致するものだけを入れてください。一覧に無い概念を無理に当てはめず、一致するものが無ければ空配列にしてください。"
-      : "この言語向けの既知の概念一覧が無いため、conceptIds は空配列にしてください。",
-  );
-
-  if (hasHistory) {
-    lines.push(
-      "resolution には、これまでの会話（履歴）を踏まえて、直前までの説明で扱っていた疑問が" +
-        '今回のユーザーの発言で解消されたと判断できるなら "resolved"、まだそう判断できないなら ' +
-        '"unclear" を入れてください。',
-    );
-  } else {
-    lines.push("これが最初のやり取りで判断材料が無いため、resolution キーは省略してください。");
-  }
-
-  return [...historyMessages, vscode.LanguageModelChatMessage.User(lines.join("\n"))];
+  return [...historyMessages, vscode.LanguageModelChatMessage.User(buildPrompt(request))];
 }
 
 /** parseAnswer() の戻り値。 */

@@ -44,3 +44,18 @@ test("会話履歴を渡すとAIRequestのhistoryへそのまま載る", () => {
     history,
   });
 });
+
+test("選択範囲にあるDiagnosticsをAIRequestへ引き継ぐ", () => {
+  const context = {
+    code: "const value: number = 'text';",
+    source: "editor" as const,
+    contextLevel: 2 as const,
+    surroundingCode: "",
+  };
+  const diagnostics = ["Type 'string' is not assignable to type 'number'."];
+
+  expect(createChatAIRequest(context, "なぜですか？", [], diagnostics)).toMatchObject({
+    mode: "explain",
+    diagnostics,
+  });
+});

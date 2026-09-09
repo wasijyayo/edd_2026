@@ -1,0 +1,108 @@
+import { CONCEPTS, type AIRequest } from "@gakushu-sochi/domain";
+
+/** 応答本文の末尾に付けさせる、表示しないメタ情報の開始マーカー。 */
+export const META_MARKER = "<<code-companion-meta>>";
+
+const SYSTEM_PROMPT = `あなたは Gakushu Sochi の学習支援コンパニオンです。
+利用者が次回はAIなしでも理解・解決できるように、考え方と確認方法を教えてください。
+完成したコードを提示することを基本方針にしません。質問の情報だけで確定できないことは推測で埋めず、前提と確認方法を示してください。
+入力はコードとは限らないため、技術用語、エラー文、コメント、Markdownの文章にも、その入力に合う形で回答してください。`;
+
+function presetInstruction(request: AIRequest): string[] {
+  if (request.diagnostics && request.diagnostics.length > 0) {
+    return [
+      "### Error Explain",
+      "エラーを解説する。なぜエラーになるか、どこを確認すべきか、次に試すことを順に説明してください。",
+      "修正済みの完成コードは出さず、利用者が自分で直せる確認手順を示してください。",
+    ];
+  }
+
+  if (request.mode === "hint") {
+    return [
+      "### Hint",
+      "会話履歴があれば、それまでに示した内容を繰り返さず、次に試す一手だけを示してください。完成したコードを出さないでください。",
+    ];
+  }
+
+  return [
+    "### Explain",
+    "意味、なぜそうなるのか、どこを確認すれば理解できるかを説明してください。完成したコードを提示しないでください。",
+  ];
+}
+
+/**
+ * AIRequest を、VS Code Language Model に送る単一のユーザープロンプトへ変換する。
+ *
+ * Prompt はプロダクトの学習方針そのものなので、このディレクトリだけを編集すれば
+ * 方針・preset・文脈の渡し方をレビューできるようにする。
+ */
+export function buildPrompt(request: AIRequest): string {
+  const lines = [
+    SYSTEM_PROMPT,
+    "",
+    ...presetInstruction(request),
+    "",
+    "--- 選択箇所 ---",
+    request.context.code,
+  ];
+
+  if (request.context.contextLevel === 1) {
+    lines.push(
+      "",
+      "--- 文脈の制約 ---",
+      "前後の文脈や位置情報がありません。前提不足を明示し、断定せず、確認したい情報も伝えてください。",
+    );
+  } else {
+    lines.push("", "--- 前後のコード ---", request.context.surroundingCode);
+  }
+
+  if (request.context.definitions && request.context.definitions.length > 0) {
+    lines.push(
+      "",
+      "--- 参照した定義 ---",
+      ...request.context.definitions.map(
+        (definition) =>
+          `${definition.fileName}:${definition.startLine + 1}${definition.symbol ? ` (${definition.symbol})` : ""}\n${definition.code}`,
+      ),
+    );
+  }
+
+  if (request.diagnostics && request.diagnostics.length > 0) {
+    lines.push("", "--- 関連するエラー ---", ...request.diagnostics);
+  }
+
+  if (request.question) {
+    lines.push("", "--- 質問 ---", request.question);
+  }
+
+  const knownConcepts = request.context.languageId
+    ? CONCEPTS.filter((concept) => concept.language === request.context.languageId)
+    : [];
+  if (knownConcepts.length > 0) {
+    lines.push(
+      "",
+      "--- 既知の概念一覧（id: 説明） ---",
+      ...knownConcepts.map((concept) => `${concept.id}: ${concept.label}`),
+    );
+  }
+
+  lines.push(
+    "",
+    "--- 出力形式 ---",
+    `本文を書き終えたら、必ず最後に ${META_MARKER} という行を書き、続けてJSONを1つだけ書いてください。`,
+    '形式: {"conceptIds": ["関係する概念のID。分からなければ空配列"], "resolution": "resolved か unclear"}',
+    knownConcepts.length > 0
+      ? "conceptIds には、上記の「既知の概念一覧」に載っているIDの中から今回の話題に一致するものだけを入れてください。一覧に無い概念を無理に当てはめず、一致するものが無ければ空配列にしてください。"
+      : "この言語向けの既知の概念一覧が無いため、conceptIds は空配列にしてください。",
+  );
+
+  if ((request.history?.length ?? 0) > 0) {
+    lines.push(
+      'resolution には、これまでの会話（履歴）を踏まえて、直前までの説明で扱っていた疑問が今回のユーザーの発言で解消されたと判断できるなら "resolved"、まだそう判断できないなら "unclear" を入れてください。',
+    );
+  } else {
+    lines.push("これが最初のやり取りで判断材料が無いため、resolution キーは省略してください。");
+  }
+
+  return lines.join("\n");
+}

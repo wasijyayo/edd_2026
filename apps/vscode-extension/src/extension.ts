@@ -9,6 +9,7 @@ import { PendingChatContext } from "./chat/pending-context";
 import { createChatAIRequest } from "./chat/request";
 import { readClipboard, readTerminalSelection } from "./context/clipboard";
 import { collectFromEditor, collectFromText } from "./context/collector";
+import { rangesOverlap } from "./context/diagnostics";
 import { getOrCreateClientId, loadProfile, recordEvent } from "./learning/store";
 import { syncEvent } from "./learning/sync";
 import { confirmSend } from "./ui/confirm";
@@ -60,6 +61,18 @@ function toConversationTurns(
 
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+/** 選択した範囲に重なる Diagnostics だけを、回答用に短い文字列として取り出す。 */
+function diagnosticsForSelection(documentUri: vscode.Uri, selection: vscode.Selection): string[] {
+  return vscode.languages
+    .getDiagnostics()
+    .filter(([uri]) => uri.toString() === documentUri.toString())
+    .flatMap(([, diagnostics]) =>
+      diagnostics
+        .filter((diagnostic) => rangesOverlap(diagnostic.range, selection))
+        .map((diagnostic) => diagnostic.message),
+    );
 }
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -116,8 +129,11 @@ export function activate(context: vscode.ExtensionContext): void {
 
   /** 文脈を保持して、最初の質問を入力済みの Gakushu Sochi Chat を開く。 */
 
-  async function openChatForContext(codeContext: CodeContext): Promise<void> {
-    const contextId = pendingChatContext.set(codeContext);
+  async function openChatForContext(
+    codeContext: CodeContext,
+    diagnostics: string[] = [],
+  ): Promise<void> {
+    const contextId = pendingChatContext.set(codeContext, diagnostics);
     logContext(codeContext.source, codeContext);
 
     try {
@@ -147,16 +163,19 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
 
-      const codeContext = pendingChatContext.take(contextMatch[1]);
+      const pendingRequest = pendingChatContext.take(contextMatch[1]);
 
-      if (!codeContext) {
+      if (!pendingRequest) {
         response.markdown(CONSUMED_CONTEXT_MESSAGE);
         return;
       }
+      const { context: codeContext, diagnostics } = pendingRequest;
 
       response.progress("Gakushu Sochi が考えています...");
       const history = toConversationTurns(_chatContext.history);
-      const aiResponse = await provider.ask(createChatAIRequest(codeContext, question, history));
+      const aiResponse = await provider.ask(
+        createChatAIRequest(codeContext, question, history, diagnostics),
+      );
 
       if (!aiResponse.ok) {
         response.markdown(`回答を生成できませんでした（${aiResponse.error.reason}）。`);
@@ -213,8 +232,9 @@ export function activate(context: vscode.ExtensionContext): void {
     }
 
     const codeContext = await collectFromEditor(editor);
+    const diagnostics = diagnosticsForSelection(editor.document.uri, selection);
 
-    await openChatForContext(codeContext);
+    await openChatForContext(codeContext, diagnostics);
   });
 
   const askTerminalSelection = vscode.commands.registerCommand(
