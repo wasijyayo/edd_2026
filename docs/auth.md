@@ -234,6 +234,11 @@ WebCrypto は Node にあるので `test:unit` は素の vitest のまま保て�
 API（audience）は `https://api.gakushu-sochi.dev`。`allow_offline_access: true`、
 アクセストークンの寿命は 900 秒（§2.3 の「15分」）、署名は RS256。
 
+**`allow_offline_access: true` は Refresh Token 発行の必要条件であって十分条件ではない。**
+テナント側でこれを有効にしたうえで、**クライアント側が各認可要求の `scope` に
+`offline_access` を含める**必要がある。片方だけでは Refresh Token は返らない。
+3クライアントとも §5.1〜§5.3 で個別に指定している。
+
 **Web だけ confidential client である。** Worker がサーバー側で認可コードを交換するため
 （§5.3）、client secret を持てる。VS Code と Desktop は配布物に secret を隠せないので
 public client + PKCE / Device Flow にする。Web の secret は `wrangler secret put` で
@@ -246,7 +251,9 @@ public client + PKCE / Device Flow にする。Web の secret は `wrangler secr
 
 ### 5.1 VS Code Extension
 
-1. `POST /oauth/device/code` で `user_code` と `verification_uri` を得る
+1. `POST /oauth/device/code` で `user_code` と `verification_uri` を得る。
+   **`scope` に `offline_access` を含める**（含めないと Refresh Token が返らず、
+   手順4が成立しない）。`audience` に §5 の API identifier を指定する
 2. VS Code の通知に `user_code` を出し、`vscode.env.openExternal` で
    `verification_uri` を開く（**Device Flow はクライアントへ戻るリダイレクトを持たない。
    これが Remote-SSH や devcontainer で成立する理由であり、loopback との決定的な違いである**）
@@ -265,6 +272,8 @@ public client + PKCE / Device Flow にする。Web の secret は `wrangler secr
 （RFC 8252 が禁じている。アプリがユーザーの資格情報入力画面を覗ける）。
 リダイレクトは `http://127.0.0.1:<ランダムポート>/callback`。
 `state` を検証し、PKCE の `code_verifier` はメモリに持つ。
+**認可要求の `scope` に `offline_access` を含める**（含めないと Refresh Token が返らず、
+次行の保存対象が存在しなくなる）。`audience` に §5 の API identifier を指定する。
 Refresh Token は既存の `createCredentialStore` にそのまま載る。
 `crypto.isAvailable()` が false のとき例外を投げる現在の挙動を維持する
 （安全に保存できないなら、保存しないのではなく失敗させる）。
@@ -274,6 +283,9 @@ Refresh Token は既存の `createCredentialStore` にそのまま載る。
 `app.all("/api/*")` が共有 `API_TOKEN` を注入している箇所を、
 **セッションに紐づくユーザーのアクセストークン**の注入へ変える。
 
+- **認可要求の `scope` に `offline_access` を含める。** `/login` から IdP へ飛ばすときに
+  含めないと Refresh Token が返らず、KV に保存する対象（下記）が存在しなくなる。
+  `audience` には §5 の API identifier を指定する
 - **`state` を検証する。** `/login` で乱数の `state` を作り、短命の pre-session Cookie に
   紐付けて保存する。`/callback` では受け取った `state` と保存値が一致することを
   **Refresh Token を保存する前に**確かめ、違えば中断する。
