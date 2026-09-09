@@ -368,16 +368,64 @@ h1 {
   margin: 0;
   padding: 0;
   font-family: var(--font-body);
-  font-size: 13px;
-  line-height: 1.65;
   color: var(--color-neutral-900);
-  white-space: pre-wrap;
   word-break: break-word;
   font-size: 14px;
   line-height: 1.75;
 }
 #answer:empty {
   display: none;
+}
+#answer > :first-child {
+  margin-top: 0;
+}
+#answer > :last-child {
+  margin-bottom: 0;
+}
+#answer h1,
+#answer h2,
+#answer h3 {
+  font-family: var(--font-heading);
+  line-height: 1.35;
+}
+#answer h1 {
+  font-size: 20px;
+}
+#answer h2 {
+  font-size: 17px;
+}
+#answer h3 {
+  font-size: 15px;
+}
+#answer ul,
+#answer ol {
+  padding-left: 1.5em;
+}
+#answer li + li {
+  margin-top: 4px;
+}
+#answer code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--color-neutral-300);
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+#answer pre {
+  overflow-x: auto;
+  margin: var(--space-3) 0;
+  padding: var(--space-3);
+  border-radius: 10px;
+  background: var(--color-neutral-900);
+  color: var(--color-neutral-100);
+}
+#answer pre code {
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+#answer a {
+  color: var(--color-accent-700);
 }
 
 .chips {

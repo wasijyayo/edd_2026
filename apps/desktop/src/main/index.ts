@@ -32,6 +32,7 @@ import { parseOpenAIStream } from "./stream.js";
 import { normalizeQuestion } from "./question.js";
 import { shouldShowStartupWindow } from "./startup.js";
 import { activatePopup } from "./activation.js";
+import { isSafeExternalUrl } from "./external-link.js";
 import { CONCEPTS } from "@gakushu-sochi/domain";
 
 const execFileAsync = promisify(execFile);
@@ -160,6 +161,22 @@ function createPopup(): BrowserWindow {
       contextIsolation: true,
       nodeIntegration: false,
     },
+  });
+  window.webContents.setWindowOpenHandler(({ url }) => {
+    if (isSafeExternalUrl(url)) {
+      void shell.openExternal(url).catch((error) => {
+        console.error("外部リンクを開けませんでした", error);
+      });
+    }
+    return { action: "deny" };
+  });
+  window.webContents.on("will-navigate", (event, url) => {
+    event.preventDefault();
+    if (isSafeExternalUrl(url)) {
+      void shell.openExternal(url).catch((error) => {
+        console.error("外部リンクを開けませんでした", error);
+      });
+    }
   });
   void window.loadFile(path.join(app.getAppPath(), "src/renderer/index.html"));
   window.on("closed", () => {
@@ -401,6 +418,12 @@ app
     );
     ipcMain.handle("window:close", () => popup?.hide());
     ipcMain.handle("window:minimize", () => popup?.minimize());
+    ipcMain.handle("external-link:open", async (_event, url: unknown) => {
+      if (typeof url !== "string" || !isSafeExternalUrl(url)) {
+        throw new Error("このリンクは開けません。");
+      }
+      await shell.openExternal(url);
+    });
     ipcMain.handle("system:accessibility", async () => {
       await openAccessibilitySettings();
     });
