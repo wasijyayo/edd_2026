@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld("desktop", {
     ipcRenderer.invoke("answer:ask", selection, question),
   close: () => ipcRenderer.invoke("window:close"),
   minimize: () => ipcRenderer.invoke("window:minimize"),
+  openExternalLink: (url: string) => ipcRenderer.invoke("external-link:open", url),
   getConcepts: () => ipcRenderer.invoke("concepts:list"),
   openAccessibilitySettings: () => ipcRenderer.invoke("system:accessibility"),
   onSelection: (listener: (payload: { selection: string; error?: string }) => void) =>

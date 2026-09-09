@@ -1,3 +1,5 @@
+import { renderMarkdown } from "./markdown.js";
+
 const $ = (id) => document.getElementById(id);
 const error = $("error"),
   selection = $("selection"),
@@ -12,6 +14,7 @@ const error = $("error"),
 // 設定シート表示中に inert 化する領域（form 自身は含めない）。
 const backdrop = [$("titlebar"), $("workspace")];
 let isAsking = false;
+let answerMarkdown = "";
 
 // Concept 一覧は packages/domain が正典（main の concepts:list 経由）。
 // 習熟度はまだ API から取れないため、全件 "unobserved" で描く。
@@ -82,7 +85,8 @@ $("settings-cancel").before(accessibility);
 
 const resetCard = () => {
   cardTitle.textContent = "回答";
-  answer.textContent = "";
+  answerMarkdown = "";
+  answer.replaceChildren();
   chips.hidden = true;
   chips.replaceChildren();
 };
@@ -99,8 +103,17 @@ const thread = $("thread");
 window.desktop.onDelta((delta) => {
   // 既に最下部を見ているときだけ、新しい行を追って自動スクロールする。
   const atBottom = thread.scrollHeight - thread.scrollTop - thread.clientHeight < 48;
-  answer.textContent += delta;
+  answerMarkdown += delta;
+  answer.innerHTML = renderMarkdown(answerMarkdown);
   if (atBottom) thread.scrollTop = thread.scrollHeight;
+});
+answer.addEventListener("click", (event) => {
+  const link = event.target?.closest?.("a");
+  if (!link) return;
+  event.preventDefault();
+  void window.desktop.openExternalLink(link.href).catch((e) => {
+    showError(`リンクを開けませんでした: ${e instanceof Error ? e.message : String(e)}`);
+  });
 });
 
 $("retry").onclick = async () => {
@@ -126,7 +139,8 @@ const ask = async () => {
   send.disabled = true;
   try {
     showNotice();
-    answer.textContent = "";
+    answerMarkdown = "";
+    answer.replaceChildren();
     chips.hidden = true;
     const asked = question.value.trim();
     cardTitle.textContent = asked || "回答";
