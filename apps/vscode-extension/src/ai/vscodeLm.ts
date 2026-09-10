@@ -51,6 +51,20 @@ const MAX_HISTORY_TURNS = 10;
  */
 const META_MARKER = "<<code-companion-meta>>";
 
+/**
+ * VS Code の languageId を Concept ID の言語プレフィックスへ対応付ける。
+ *
+ * TypeScript は JavaScript の上位互換であり、変数・関数・非同期処理などの共通概念を
+ * `js.*` と `ts.*` に二重登録すると習熟度が分散する。そのため JavaScript の質問も
+ * `ts.*` の Concept 体系にまとめる。
+ */
+function conceptLanguageFor(languageId: string): string {
+  if (languageId === "typescript" || languageId === "javascript") {
+    return "ts";
+  }
+  return languageId;
+}
+
 /** AIRequest を LanguageModelChatMessage の配列へ変換する。 */
 function toMessages(request: AIRequest): vscode.LanguageModelChatMessage[] {
   // 直近 MAX_HISTORY_TURNS 件だけを使う。長い会話をそのまま送り続けると
@@ -91,7 +105,9 @@ function toMessages(request: AIRequest): vscode.LanguageModelChatMessage[] {
   // （実機で確認済み: 短縮変数宣言の話をしていたのに、IDを提示していなかったため
   // conceptIds が空で返ってきた）。languageId が無い（Lv1）場合は絞り込めないため渡さない。
   const knownConcepts = request.context.languageId
-    ? CONCEPTS.filter((concept) => concept.language === request.context.languageId)
+    ? CONCEPTS.filter(
+        (concept) => concept.language === conceptLanguageFor(request.context.languageId!),
+      )
     : [];
   if (knownConcepts.length > 0) {
     lines.push(

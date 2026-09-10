@@ -86,6 +86,33 @@ test("languageIdに一致するConceptの一覧をプロンプトに含める", 
   expect(vi.mocked(vscode.LanguageModelChatMessage.User)).toHaveBeenCalled();
 });
 
+test.each(["typescript", "javascript"])(
+  "%s の質問には共通の ts Concept 一覧をプロンプトに含める",
+  async (languageId) => {
+    const sendRequest = vi.fn().mockResolvedValue(responseOf("説明文"));
+    selectChatModels.mockResolvedValueOnce([
+      { id: "gpt-4o-mini", family: "gpt-4o-mini", sendRequest },
+    ]);
+
+    await new VSCodeLMProvider().ask({
+      mode: "explain",
+      context: {
+        code: "const values = [1, 2, 3];",
+        source: "editor",
+        contextLevel: 2,
+        surroundingCode: "const values = [1, 2, 3];",
+        languageId,
+      },
+    });
+
+    const messages = sendRequest.mock.calls[0]?.[0] as { text: string }[];
+    const prompt = messages.at(-1)?.text ?? "";
+
+    expect(prompt).toContain("ts.variable_declaration");
+    expect(prompt).not.toContain("conceptIds は空配列にしてください");
+  },
+);
+
 test("languageIdが無ければConcept一覧を含めない", async () => {
   const sendRequest = vi.fn().mockResolvedValue(responseOf("説明文"));
   selectChatModels.mockResolvedValueOnce([

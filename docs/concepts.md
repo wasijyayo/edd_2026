@@ -70,14 +70,24 @@ roadmap.sh（`nilbuild/developer-roadmap`）の Go ロードマップは、各�
 
 ---
 
-## Go の Concept 一覧
+## Concept 一覧
 
 一覧の正典は **[`packages/domain/concepts.md`](../packages/domain/concepts.md)** にある。
 生成物 `packages/domain/src/concepts.generated.ts` の隣に置き、
 生成の入力と出力を並べて確認できるようにしている。
 
-MVP の対象は Go のみで、20件を手で定義している。
+MVP では Go と TypeScript / JavaScript を対象に、一覧を手で定義している。
 追加するときは次の手順に従う。
+
+### TypeScript / JavaScript の扱い
+
+TypeScript と JavaScript の共通概念は、**`ts.*` の単一体系**に定義する。JavaScript 用の
+`js.*` は作らない。TypeScript は JavaScript の上位互換であり、変数・関数・配列・非同期処理
+のような概念を別 ID にすると、同じ理解に対する mastery が二重に分かれるためである。
+
+VS Code の `typescript` と `javascript` の languageId は、Concept を検索する際にどちらも
+`ts` へ対応付ける。`Concept.language` は ID プレフィックスと一致させるため `ts` のまま保持し、
+言語 ID をそのまま保存しない。TypeScript 固有の型システムも同じ `ts.*` に置く。
 
 ---
 
