@@ -14,7 +14,7 @@ type Profile = { derivedAt: string; eventCount: number; concepts: Concept[] };
 type Activity = { from: string; to: string; days: ActivityDay[] };
 
 // ログイン・ログアウトは単発リクエスト。応答が返らないまま待ち続けると
-// 画面が固まるので、締め切りを設ける（docs/rules/rules.md RULE-001）。
+// 画面が固まるので、締め切りを設ける（.agents/rules/rules.md RULE-001）。
 const AUTH_REQUEST_TIMEOUT_MS = 10_000;
 
 const errorText: Record<ApiError["kind"], string> = {

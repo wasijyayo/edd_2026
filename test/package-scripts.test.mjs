@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+const repoRoot = new URL("..", import.meta.url);
 const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 const extensionPackageJson = JSON.parse(
   await readFile(new URL("../apps/vscode-extension/package.json", import.meta.url), "utf8"),
@@ -96,6 +98,25 @@ test("ルール候補の収穫が main への push で自動的に走る", () =>
   assert.match(harvestWorkflow, /steps\.harvest\.outputs\.has_new == 'true'/);
 });
 
+test("正典の出典は PR 番号とパスの組で引ける", async () => {
+  // PR 番号だけで採用済みを判定すると、同じ PR の別カテゴリの指摘まで
+  // 採用済みになり、本当は新しい候補が黙って消える（PR#98 のレビュー指摘）。
+  // 出典の書式が崩れると照合できなくなるので、書式自体を検査する。
+  const rules = await readFile(new URL("../.agents/rules/rules.md", import.meta.url), "utf8");
+  const blocks = [...rules.matchAll(/\*\*出典\*\*:([\s\S]*?)(?=\n\n)/g)];
+  assert.ok(blocks.length > 0, "出典ブロックを読み取れない");
+  for (const [, block] of blocks) {
+    for (const segment of block.split(/(?=PR#\d+)/)) {
+      if (!/PR#\d+/.test(segment)) continue;
+      assert.match(
+        segment,
+        /`[^`]+`/,
+        `出典に対象パスが無い。PR 番号だけでは採用済みを判定できない: ${segment.trim()}`,
+      );
+    }
+  }
+});
+
 test("収穫は採用済み・却下済みを差し引くための台帳を持つ", async () => {
   // 台帳が無いと同じ候補が毎回出て、通知はすぐ無視されるようになる。
   const harvester = await readFile(
@@ -128,4 +149,23 @@ test("AGENTS.md がルールの正典を読み込ませ、一覧が正典と一�
   for (const id of listed) {
     assert.ok(canonical.includes(id), `${id} は AGENTS.md にあるが正典に無い`);
   }
+});
+
+test("正典の旧パスへの参照が残っていない", () => {
+  // 正典を .agents/ へ移したとき、拡張子を列挙して grep したせいで
+  // .ts / .tsx のコメント内の参照を見落とした（PR#98 のレビューで指摘された）。
+  // 追跡対象ファイル全体を対象にして、この取りこぼしを二度と起こさない。
+  let tracked = "";
+  try {
+    tracked = execFileSync(
+      "git",
+      ["grep", "-lF", "docs/rules/", "--", ".", ":!test/package-scripts.test.mjs"],
+      { cwd: repoRoot, encoding: "utf8" },
+    ).trim();
+  } catch (error) {
+    // git grep は一致が無いと終了コード 1 で終わる。それが期待する状態。
+    // それ以外の失敗（git が無い、リポジトリ外など）は握りつぶさない。
+    if (error.status !== 1) throw error;
+  }
+  assert.equal(tracked, "", `旧パス docs/rules/ への参照が残っている:\n${tracked}`);
 });

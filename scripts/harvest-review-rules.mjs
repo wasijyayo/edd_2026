@@ -69,11 +69,30 @@ async function readDeclined(relativePath) {
 
 // PR ごとの作成者を引く。`gh api user` は「実行者」であって PR 作成者ではないうえ、
 // GitHub Actions の GITHUB_TOKEN では 403 になる。
-const pullRequests = JSON.parse(
-  await gh(["pr", "list", "--state", "all", "--limit", "200", "--json", "number,author"]),
-).map((pr) => ({ number: pr.number, author: pr.author?.login }));
+// 上限を切ると、超えた分は黙って落ちる。件数が増えても取りこぼさないよう
+// 十分に大きな値を渡し、実際に上限へ達したら失敗させる。
+const PR_LIMIT = 5000;
+const listed = JSON.parse(
+  await gh([
+    "pr",
+    "list",
+    "--state",
+    "all",
+    "--limit",
+    String(PR_LIMIT),
+    "--json",
+    "number,author",
+  ]),
+);
+if (listed.length >= PR_LIMIT) {
+  throw new Error(
+    `PR が取得上限 ${PR_LIMIT} 件に達した。取りこぼしたまま集計すると候補の判定を誤る。`,
+  );
+}
+const pullRequests = listed.map((pr) => ({ number: pr.number, author: pr.author?.login }));
 
 const comments = [];
+const failedPullRequests = [];
 for (const pr of pullRequests) {
   let raw;
   try {
@@ -85,8 +104,11 @@ for (const pr of pullRequests) {
       ".[] | {id, in_reply_to: .in_reply_to_id, user: .user.login, path, body}",
     ]);
   } catch (error) {
-    // 1 件の PR が読めなくても収穫全体は続ける。ただし黙って捨てない。
-    console.error(`warn: PR#${pr.number} のコメントを取得できなかった: ${error.message}`);
+    // 読めなかった PR は記録しておき、最後に失敗させる。
+    // ここで握りつぶすと、不完全な履歴から hasNew を計算することになり、
+    // 出すべき通知が出ない／既存 Issue が欠けた候補で上書きされる。
+    console.error(`error: PR#${pr.number} のコメントを取得できなかった: ${error.message}`);
+    failedPullRequests.push(pr.number);
     continue;
   }
   for (const line of raw.trim().split("\n").filter(Boolean)) {
@@ -101,9 +123,22 @@ for (const pr of pullRequests) {
 const addressedRoots = new Set();
 for (const comment of comments) {
   if (!comment.in_reply_to) continue;
-  if (comment.user === comment.author || /確認しました|Thanks for confirming/.test(comment.body)) {
+  const isAuthorReply = comment.user === comment.author;
+  // 「確認しました」はレビュー bot が修正の着地を確認したときのシグナル。
+  // 人間のレビュアーの同じ言葉まで拾うと、修正が入っていない指摘まで
+  // 候補へ昇格してしまう。
+  const isBotConfirmation =
+    comment.user.endsWith("[bot]") && /確認しました|Thanks for confirming/.test(comment.body);
+  if (isAuthorReply || isBotConfirmation) {
     addressedRoots.add(comment.in_reply_to);
   }
+}
+
+if (failedPullRequests.length > 0) {
+  throw new Error(
+    `${failedPullRequests.length} 件の PR のレビューを取得できなかった` +
+      `（#${failedPullRequests.join(", #")}）。不完全な履歴で候補を判定しない。`,
+  );
 }
 
 const roots = comments.filter((comment) => !comment.in_reply_to && comment.user !== comment.author);
@@ -138,7 +173,25 @@ const candidates = [...clusters.values()]
 // 同じ候補が出続けて、通知は数週間で無視されるようになる。
 const rules = await readCanon(RULES_PATH);
 const declined = await readDeclined(DECLINED_PATH);
-const citedPrs = new Set([...rules.matchAll(/PR#(\d+)/g)].map((match) => match[1]));
+// 出典は「PR 番号 + そのとき指摘されたパス」の組で引く。
+// 番号だけで照合すると、同じ PR の別カテゴリの指摘まで採用済みになり、
+// **本当は新しい候補が黙って消える**（PR#98 のレビューで実際に見つかった）。
+const citations = [];
+for (const [, block] of rules.matchAll(/\*\*出典\*\*:([\s\S]*?)(?=\n\n)/g)) {
+  // 出典は複数行にまたがり、1 行に複数の PR が並ぶこともある。
+  // 「PR#N から次の PR# まで」を 1 件として、その範囲のパスに結び付ける。
+  const segments = block.split(/(?=PR#\d+)/);
+  for (const segment of segments) {
+    const pr = segment.match(/PR#(\d+)/)?.[1];
+    if (!pr) continue;
+    for (const [, cited] of segment.matchAll(/`([^`]+)`/g)) {
+      citations.push({ pr, path: cited });
+    }
+  }
+}
+if (citations.length === 0) {
+  throw new Error("正典から出典を 1 件も読み取れなかった。書式が変わっていないか確認すること。");
+}
 const declinedKeys = new Set(
   [...declined.matchAll(/^-\s*`([^`]+)`/gm)].map((match) => match[1].trim()),
 );
@@ -151,8 +204,15 @@ function statusOf(cluster) {
   // 「構成 PR がすべて引かれているか」で見ると、未対応の指摘が 1 件混ざるだけで
   // クラスタ全体が新規に戻り、採用済みのルールが毎回再提示されてしまう。
   const evidence = cluster.items.filter((item) => item.addressed);
-  if (evidence.length > 0 && evidence.every((item) => citedPrs.has(String(item.pr))))
-    return "adopted";
+  const isCited = (item) =>
+    citations.some(
+      (citation) =>
+        citation.pr === String(item.pr) &&
+        // 正典は `sync.ts` のように末尾だけを書くこともあるので、
+        // フルパスとの後方一致で照合する。
+        (item.path === citation.path || item.path.endsWith(`/${citation.path}`)),
+    );
+  if (evidence.length > 0 && evidence.every(isCited)) return "adopted";
   return "new";
 }
 

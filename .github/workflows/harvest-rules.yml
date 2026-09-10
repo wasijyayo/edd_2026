@@ -17,6 +17,12 @@ permissions:
   contents: read
   issues: write
 
+# 同時に走ると、既存 Issue の検索と作成の間に割り込みが起きて
+# 同じタイトルの Issue が重複する。直列化する。
+concurrency:
+  group: harvest-review-rules
+  cancel-in-progress: false
+
 jobs:
   harvest:
     name: Harvest

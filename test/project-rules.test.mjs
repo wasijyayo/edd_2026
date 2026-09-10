@@ -42,15 +42,17 @@ const sources = new Map(
 
 /**
  * `fetch(` の呼び出しごとに、引数リストの範囲を切り出す。
- * 中継ハンドラ（`.ASSETS.fetch` など受け取った Request をそのまま渡すもの）と、
- * 依存注入のための定義（`fetch:` プロパティ）は呼び出しではないので除く。
+ *
+ * 受信側（`globalThis.` など）では除外しない。`globalThis.fetch("...", { headers })`
+ * のような実際の呼び出しまで隠れ、ルールが素通りするため。
+ * 中継かどうかは呼び名ではなく引数の形で判定する（isRelayCall）。
  */
 function findFetchCalls(text) {
   const calls = [];
-  const pattern = /(^|[^\w.$])(?:(\w+)\.)?fetch\s*\(/g;
+  // 受信側は多階層を許す（`c.env.ASSETS.fetch` など）。1 階層しか拾わないと、
+  // 中継の判定材料が落ちて実際の呼び出しと区別できなくなる。
+  const pattern = /(^|[^\w.$])((?:[A-Za-z_$][\w$]*\.)*)fetch\s*\(/g;
   for (let match; (match = pattern.exec(text));) {
-    const receiver = match[2];
-    if (receiver === "ASSETS" || receiver === "globalThis" || receiver === "super") continue;
     const open = match.index + match[0].length - 1;
     let depth = 0;
     let end = -1;
@@ -72,14 +74,37 @@ function findFetchCalls(text) {
     const binding = text
       .slice(Math.max(0, callStart - 120), callStart)
       .match(/(?:const|let|var)\s+(\w+)\s*=\s*(?:await\s+)?$/)?.[1];
-    calls.push({ line, args: text.slice(open, end + 1), end, binding });
+    const receiver = match[2].replace(/\.$/, "");
+    calls.push({ line, args: text.slice(open, end + 1), end, binding, receiver });
   }
   return calls;
 }
 
-/** 受け取った Request をそのまま中継するだけの呼び出しか。上流の中断が伝播する。 */
-function isRelayCall(args) {
-  return /^\(\s*[\w.]+\s*\)$/.test(args.replace(/\s+/g, " ").trim());
+/**
+ * 受け取った値をそのまま渡すだけの中継か。上流の中断が伝播するので対象外にする。
+ *
+ * 判定は引数の形だけで行う。**すべての引数が識別子（またはプロパティ参照）**なら中継。
+ * 文字列やオブジェクトのリテラルが 1 つでもあれば、その場で組み立てた要求なので中継ではない。
+ *
+ *   globalThis.fetch(input, init)      → 中継（DI のラッパ）
+ *   c.env.ASSETS.fetch(c.req.raw)      → 中継
+ *   deps.fetch(target, { method })     → 中継ではない
+ *   fetch("https://...")               → 中継ではない
+ *
+ * 引数の個数では判定しない。1 個なら中継と見なすと、ごく普通の `fetch(url)` が
+ * すり抜ける（PR#98 のレビューで実際に見つかった見逃し）。
+ */
+function isRelayCall(call) {
+  const inner = call.args.slice(1, -1).trim();
+  if (inner === "") return false;
+  const allIdentifiers = inner
+    .split(",")
+    .every((argument) => /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*$/.test(argument.trim()));
+  if (!allIdentifiers) return false;
+  // 裸の `fetch(url)` は中継ではなく、その場で投げる単発の要求である。
+  // 中継は受け皿（`globalThis.` `c.env.ASSETS.` など）を通して呼ぶ形に限る。
+  // 迷ったら違反側に倒す。見逃しは緑になって気付けない。
+  return Boolean(call.receiver);
 }
 
 /**
@@ -112,7 +137,7 @@ test("RULE-001: 単発の外向き fetch には signal を渡す", () => {
   for (const [file, text] of sources) {
     for (const call of findFetchCalls(text)) {
       if (/\bsignal\s*:/.test(call.args)) continue;
-      if (isRelayCall(call.args)) continue;
+      if (isRelayCall(call)) continue;
       if (isStreamingCall(text, call)) continue;
       violations.push(`${file}:${call.line}`);
     }
@@ -176,6 +201,40 @@ test("RULE-004: 空の catch を書かない", () => {
     `空の catch がある。記録するか型付きの結果へ変換すること` +
       `（.agents/rules/rules.md RULE-004）:\n${violations.join("\n")}`,
   );
+});
+
+// 検出器そのものの回帰テスト。
+// 「本物の違反を見逃さない」ことは、緑のテストからは分からない。
+// 実際にすり抜けた書き方（PR#98 のレビュー指摘）を固定しておく。
+test("検出器: 中継と実際の呼び出しを取り違えない", () => {
+  const cases = [
+    // [コード, 中継とみなすか]
+    ["const r = await globalThis.fetch(input, init);", true],
+    ["app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw));", true],
+    // 裸の fetch(url) は中継ではない。単発の要求として検査対象にする。
+    ["const r = await fetch(url);", false],
+    ['const r = await fetch("https://example.test/a");', false],
+    ['const r = await globalThis.fetch("https://x.test", { headers });', false],
+    ["const r = await deps.fetch(target, { method: 'POST' });", false],
+  ];
+  for (const [code, expected] of cases) {
+    const [call] = findFetchCalls(code);
+    assert.ok(call, `fetch 呼び出しを検出できない: ${code}`);
+    assert.equal(isRelayCall(call), expected, `中継判定が誤り: ${code}`);
+  }
+});
+
+test("検出器: signal 無しの単発 fetch を見逃さない", () => {
+  const violating = [
+    'const r = await fetch("https://example.test/a");',
+    'const r = await globalThis.fetch("https://x.test", { headers: { Authorization: t } });',
+  ];
+  for (const code of violating) {
+    const [call] = findFetchCalls(code);
+    assert.ok(!/\bsignal\s*:/.test(call.args), code);
+    assert.ok(!isRelayCall(call), `中継として誤って除外される: ${code}`);
+    assert.ok(!isStreamingCall(code, call), `ストリームとして誤って除外される: ${code}`);
+  }
 });
 
 // ルール文書とテストが乖離しないよう、正典の存在自体も検査する。

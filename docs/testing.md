@@ -182,5 +182,5 @@ npm run test:project-rules     # PR レビュー由来のプロジェクトル�
 ```
 
 どちらも `npm test` から呼ばれ、CI と lefthook にも配線済みなので、通常は個別実行は不要。
-ルールの一覧は [`rules/rules.md`](rules/rules.md)、
+ルールの一覧は [`.agents/rules/rules.md`](../.agents/rules/rules.md)、
 その運用方針は [`guardrails.md`](guardrails.md) を参照。

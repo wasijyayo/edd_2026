@@ -1,7 +1,7 @@
 # AI ガードレール方針
 
 この文書は、PR レビューで得られた知見を、**次に同じ間違いが起きないための仕組み**へ
-変換する流れを扱う。個別のルールそのものは [rules/rules.md](rules/rules.md) が正典であり、
+変換する流れを扱う。個別のルールそのものは [`.agents/rules/rules.md`](../.agents/rules/rules.md) が正典であり、
 ここではなぜその形にしたのかという設計判断を残す。
 
 ## 結論
@@ -188,15 +188,15 @@ Issue には両方の下書きが載っているので、貼って埋めれば�
 
 ## 実装
 
-| 要素       | 実体                                                             |
-| ---------- | ---------------------------------------------------------------- |
-| 収穫       | `scripts/harvest-review-rules.mjs`（`npm run harvest:rules`）    |
-| 自動起動   | `.github/workflows/harvest-rules.yml`（`main` への push / 手動） |
-| 通知の整形 | `scripts/format-rule-candidates.mjs`（Issue 本文と下書きを生成） |
-| 却下の記録 | `.agents/rules/declined.md`                                      |
-| 正典       | `.agents/rules/rules.md`、運用は この文書                        |
-| 強制       | `test/project-rules.test.mjs`（`npm run test:project-rules`）    |
-| 入口       | `AGENTS.md`（= `CLAUDE.md`）からルール一覧へ誘導                 |
+| 要素       | 実体                                                                            |
+| ---------- | ------------------------------------------------------------------------------- |
+| 収穫       | `scripts/harvest-review-rules.mjs`（`npm run harvest:rules`）                   |
+| 自動起動   | `.github/workflows/harvest-rules.yml`（`main` への push / 手動）                |
+| 通知の整形 | `scripts/format-rule-candidates.mjs`（Issue 本文と下書きを生成）                |
+| 却下の記録 | `.agents/rules/declined.md`                                                     |
+| 正典       | `.agents/rules/rules.md`（出典は PR 番号と対象パスの組で書く）、運用は この文書 |
+| 強制       | `test/project-rules.test.mjs`（`npm run test:project-rules`）                   |
+| 入口       | `AGENTS.md`（= `CLAUDE.md`）からルール一覧へ誘導                                |
 
 ### 配線が消えないようにする
 
@@ -253,6 +253,10 @@ lefthook の pre-push にあることを検査する。後から静かに外す�
   `Headers` オブジェクトを別の場所で組み立ててから渡す書き方
   （`apps/web/src/worker/index.ts` のプロキシがこれ）は検出できない。
   テストが緑でも安全の証明にはならないので、資格情報を送る箇所は目視すること。
+- **中継の判定は引数の形で行う。**
+  すべての引数が識別子で、かつ受け皿（`globalThis.` など）を通して呼ぶものだけを中継と見なす。
+  受信側の名前で除外していた頃は `globalThis.fetch("...", { headers })` のような
+  実際の呼び出しまで隠れていた（PR#98 のレビューで発覚）。判定は違反側へ倒す。
 - **収穫ツールは実行者を PR 作成者と見なす。**
   複数人で開発するようになったら、PR ごとの作成者を引く必要がある。
 - **返信せず直接修正した指摘は「未対応」に見える。** 対応件数は下振れする。

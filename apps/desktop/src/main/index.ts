@@ -335,7 +335,7 @@ async function askManagedAI(
     method: "POST",
     headers: { Authorization: `Bearer ${apiToken}`, "Content-Type": "application/json" },
     // リダイレクトを自動追跡しない。転送先へ Authorization ヘッダごと送られると、
-    // トークンが意図しない相手に渡る（docs/rules/rules.md RULE-002）。
+    // トークンが意図しない相手に渡る（.agents/rules/rules.md RULE-002）。
     redirect: "error",
     body: JSON.stringify({
       selection,
