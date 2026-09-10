@@ -1,0 +1,61 @@
+name: Harvest review rules
+
+# レビューで繰り返された指摘を、ルール候補として知らせる。
+# main への push はマージされた PR がレビューごと入ってくる瞬間なので、
+# 新しい原料が実際に増えるタイミングと一致する。
+#
+# ルールを自動で追記することはしない。採否は人間が決める。
+# エージェントがルールを書き足せる仕組みにすると、ルール集は
+# 誰も読まない長さに膨らみ、守られなくなる（docs/guardrails.md を参照）。
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  harvest:
+    name: Harvest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.20.0
+      - name: Collect rule candidates
+        id: harvest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # --silent: npm のバナーが混ざると JSON として読めない
+          npm run --silent harvest:rules -- --json > candidates.json
+          node -e '
+            const { hasNew } = require("./candidates.json");
+            require("node:fs").appendFileSync(process.env.GITHUB_OUTPUT, `has_new=${hasNew}\n`);
+          '
+      - name: Build issue body
+        if: steps.harvest.outputs.has_new == 'true'
+        run: node scripts/format-rule-candidates.mjs candidates.json > issue-body.md
+      - name: Open or update the triage issue
+        if: steps.harvest.outputs.has_new == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          title="ルール候補: レビューで繰り返された指摘の棚卸し"
+          # 同じ内容の Issue を積み上げない。既にあれば本文を差し替える。
+          existing="$(gh issue list --state open --search "$title in:title" --json number,title \
+            --jq ".[] | select(.title == \"$title\") | .number" | head -1)"
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --body-file issue-body.md
+            echo "updated issue #$existing"
+          else
+            gh issue create --title "$title" --body-file issue-body.md
+          fi

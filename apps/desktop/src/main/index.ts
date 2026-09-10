@@ -334,6 +334,9 @@ async function askManagedAI(
   const response = await fetch(`${settings.apiBaseUrl.replace(/\/$/, "")}/v1/ai/responses`, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiToken}`, "Content-Type": "application/json" },
+    // リダイレクトを自動追跡しない。転送先へ Authorization ヘッダごと送られると、
+    // トークンが意図しない相手に渡る（docs/rules/rules.md RULE-002）。
+    redirect: "error",
     body: JSON.stringify({
       selection,
       question,
