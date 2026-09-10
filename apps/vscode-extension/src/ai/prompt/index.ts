@@ -8,6 +8,12 @@ const SYSTEM_PROMPT = `あなたは Gakushu Sochi の学習支援コンパニオ
 完成したコードを提示することを基本方針にしません。質問の情報だけで確定できないことは推測で埋めず、前提と確認方法を示してください。
 入力はコードとは限らないため、技術用語、エラー文、コメント、Markdownの文章にも、その入力に合う形で回答してください。`;
 
+/** VS Code の languageId を、Concept の言語プレフィックスへ対応付ける。 */
+function conceptLanguageFor(languageId: string): string {
+  // TypeScript と JavaScript の共通概念は、習熟度が分散しないよう ts.* に統一する。
+  return languageId === "typescript" || languageId === "javascript" ? "ts" : languageId;
+}
+
 function presetInstruction(request: AIRequest): string[] {
   if (request.diagnostics && request.diagnostics.length > 0) {
     return [
@@ -76,7 +82,9 @@ export function buildPrompt(request: AIRequest): string {
   }
 
   const knownConcepts = request.context.languageId
-    ? CONCEPTS.filter((concept) => concept.language === request.context.languageId)
+    ? CONCEPTS.filter(
+        (concept) => concept.language === conceptLanguageFor(request.context.languageId!),
+      )
     : [];
   if (knownConcepts.length > 0) {
     lines.push(
