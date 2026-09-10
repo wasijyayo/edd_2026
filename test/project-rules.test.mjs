@@ -127,7 +127,13 @@ function isRelayCall(call) {
  * ストリーミングに壁時計タイムアウトを付けると、長い生成が途中で打ち切られる。
  */
 function isStreamingCall(call) {
-  if (/alt=sse|text\/event-stream|stream(?:Generate|ing)/i.test(call.text)) return true;
+  // 要求 URL が SSE を要求しているか。判定に使うのは第 1 引数（宛先）だけ。
+  // 呼び出し全体の文字列を見ると、`body: JSON.stringify({ mode: "streaming" })` のような
+  // 送信内容までストリームの根拠になり、普通の要求が検査から漏れる。
+  const target = call.args[0];
+  if (target && /alt=sse|text\/event-stream|stream(?:Generate|ing)/i.test(target.getText())) {
+    return true;
+  }
   if (!call.binding) return false;
 
   // 「この呼び出しの応答」の body をどう扱っているかだけを見る。
@@ -299,12 +305,41 @@ test("検出器: signal 無しの単発 fetch を見逃さない", () => {
   const violating = [
     'const r = await fetch("https://example.test/a");',
     'const r = await globalThis.fetch("https://x.test", { headers: { Authorization: t } });',
+    // 送信内容に "streaming" という語が入るだけの、応答をストリームしない要求。
+    // 呼び出し全体の文字列でストリーム判定すると、これが検査から漏れる。
+    'const r = await fetch("https://x.test", { body: JSON.stringify({ mode: "streaming" }) });',
   ];
   for (const code of violating) {
     const [call] = findFetchCalls(code);
-    assert.ok(!/\bsignal\s*:/.test(call.args), code);
+    assert.ok(!optionProperty(call, "signal"), code);
     assert.ok(!isRelayCall(call), `中継として誤って除外される: ${code}`);
-    assert.ok(!isStreamingCall(code, call), `ストリームとして誤って除外される: ${code}`);
+    assert.ok(!isStreamingCall(call), `ストリームとして誤って除外される: ${code}`);
+  }
+});
+
+test("検出器: ストリームの判定は応答の扱いに基づく", () => {
+  const streaming = [
+    // SSE を要求する宛先
+    'const r = await fetch("https://x.test/v1:stream?alt=sse", { method: "POST" });',
+    // 応答を逐次読む
+    'const r = await fetch("https://x.test", { method: "POST" });\nconst rd = r.body.getReader();',
+    // 応答をそのまま下流へ流す
+    'const up = await deps.fetch(t, { method: "GET" });\nreturn new Response(up.body, {});',
+  ];
+  for (const code of streaming) {
+    const [call] = findFetchCalls(code);
+    assert.ok(isStreamingCall(call), `ストリームと判定されない: ${code}`);
+  }
+
+  const notStreaming = [
+    // 送信内容に streaming という語があるだけ
+    'const r = await fetch("https://x.test", { body: JSON.stringify({ mode: "streaming" }) });',
+    // 無関係な .body（document.body）が近くにある
+    'const r = await fetch("https://x.test");\ndocument.body.dataset.ok = "1";',
+  ];
+  for (const code of notStreaming) {
+    const [call] = findFetchCalls(code);
+    assert.ok(!isStreamingCall(call), `ストリームとして誤って除外される: ${code}`);
   }
 });
 
