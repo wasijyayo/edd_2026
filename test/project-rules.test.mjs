@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
+import ts from "typescript";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -41,90 +42,161 @@ const sources = new Map(
 );
 
 /**
- * `fetch(` の呼び出しごとに、引数リストの範囲を切り出す。
+ * ソースを構文解析して `fetch` 呼び出しを取り出す。
  *
- * 受信側（`globalThis.` など）では除外しない。`globalThis.fetch("...", { headers })`
- * のような実際の呼び出しまで隠れ、ルールが素通りするため。
- * 中継かどうかは呼び名ではなく引数の形で判定する（isRelayCall）。
+ * 正規表現ではなく AST を使う。文字列やコメントの中の `fetch(` を拾わず、
+ * 引数が識別子かリテラルかを取り違えないため。TypeScript は既にこのリポジトリの
+ * 依存にあるので、解析のために新しい依存は増えない。
+ *
+ * ファイル名は実際のパスを渡すこと。TypeScript は拡張子から ScriptKind を決めるため、
+ * `.tsx` を `.ts` として解析すると JSX の `<` が型アサーションと読まれ、
+ * 木が壊れて**何も検出しないまま緑になる**。
  */
-function findFetchCalls(text) {
+function findFetchCalls(text, fileName = "input.ts") {
+  const source = ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true);
   const calls = [];
-  // 受信側は多階層を許す（`c.env.ASSETS.fetch` など）。1 階層しか拾わないと、
-  // 中継の判定材料が落ちて実際の呼び出しと区別できなくなる。
-  const pattern = /(^|[^\w.$])((?:[A-Za-z_$][\w$]*\.)*)fetch\s*\(/g;
-  for (let match; (match = pattern.exec(text));) {
-    const open = match.index + match[0].length - 1;
-    let depth = 0;
-    let end = -1;
-    for (let i = open; i < text.length; i += 1) {
-      const char = text[i];
-      if (char === "(") depth += 1;
-      else if (char === ")") {
-        depth -= 1;
-        if (depth === 0) {
-          end = i;
-          break;
+
+  const visit = (node) => {
+    if (ts.isCallExpression(node)) {
+      const callee = node.expression;
+      const isPropertyAccess = ts.isPropertyAccessExpression(callee);
+      const name = ts.isIdentifier(callee)
+        ? callee.text
+        : isPropertyAccess
+          ? callee.name.text
+          : undefined;
+      if (name === "fetch") {
+        // 応答を束縛している変数。ストリーム判定をこの呼び出しの応答に限定するために使う。
+        let binding;
+        let parent = node.parent;
+        if (parent && ts.isAwaitExpression(parent)) parent = parent.parent;
+        if (parent && ts.isVariableDeclaration(parent) && ts.isIdentifier(parent.name)) {
+          binding = parent.name.text;
         }
+        calls.push({
+          node,
+          line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1,
+          receiver: isPropertyAccess ? callee.expression.getText(source) : undefined,
+          args: node.arguments,
+          text: node.getText(source),
+          binding,
+          source,
+        });
       }
     }
-    if (end === -1) continue;
-    const line = text.slice(0, match.index).split("\n").length;
-    // 応答を束縛する変数名。ストリーム判定を「この呼び出しの応答」に限定するために使う。
-    const callStart = match.index + match[1].length;
-    const binding = text
-      .slice(Math.max(0, callStart - 120), callStart)
-      .match(/(?:const|let|var)\s+(\w+)\s*=\s*(?:await\s+)?$/)?.[1];
-    const receiver = match[2].replace(/\.$/, "");
-    calls.push({ line, args: text.slice(open, end + 1), end, binding, receiver });
-  }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
   return calls;
+}
+
+/** 呼び出しの options に、指定した名前のプロパティが直接書かれているか。 */
+function optionProperty(call, propertyName) {
+  const options = call.args[1];
+  if (!options || !ts.isObjectLiteralExpression(options)) return undefined;
+  return options.properties.find(
+    (property) =>
+      property.name && ts.isIdentifier(property.name) && property.name.text === propertyName,
+  );
 }
 
 /**
  * 受け取った値をそのまま渡すだけの中継か。上流の中断が伝播するので対象外にする。
  *
- * 判定は引数の形だけで行う。**すべての引数が識別子（またはプロパティ参照）**なら中継。
- * 文字列やオブジェクトのリテラルが 1 つでもあれば、その場で組み立てた要求なので中継ではない。
+ * すべての引数が識別子（またはプロパティ参照）で、かつ受け皿を通して呼ぶものだけを
+ * 中継と見なす。リテラルが 1 つでもあれば、その場で組み立てた要求なので中継ではない。
  *
  *   globalThis.fetch(input, init)      → 中継（DI のラッパ）
  *   c.env.ASSETS.fetch(c.req.raw)      → 中継
  *   deps.fetch(target, { method })     → 中継ではない
- *   fetch("https://...")               → 中継ではない
+ *   fetch(url)                         → 中継ではない（裸の呼び出し）
  *
  * 引数の個数では判定しない。1 個なら中継と見なすと、ごく普通の `fetch(url)` が
  * すり抜ける（PR#98 のレビューで実際に見つかった見逃し）。
  */
 function isRelayCall(call) {
-  const inner = call.args.slice(1, -1).trim();
-  if (inner === "") return false;
-  const allIdentifiers = inner
-    .split(",")
-    .every((argument) => /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*$/.test(argument.trim()));
-  if (!allIdentifiers) return false;
-  // 裸の `fetch(url)` は中継ではなく、その場で投げる単発の要求である。
-  // 中継は受け皿（`globalThis.` `c.env.ASSETS.` など）を通して呼ぶ形に限る。
-  // 迷ったら違反側に倒す。見逃しは緑になって気付けない。
-  return Boolean(call.receiver);
+  if (call.args.length === 0) return false;
+  if (!call.receiver) return false;
+  return call.args.every(
+    (argument) => ts.isIdentifier(argument) || ts.isPropertyAccessExpression(argument),
+  );
 }
 
 /**
  * 応答をストリームとして扱う呼び出しか。
- * SSE の要求か、応答の `body` を逐次読む書き方を手がかりにする。
  * ストリーミングに壁時計タイムアウトを付けると、長い生成が途中で打ち切られる。
  */
-function isStreamingCall(text, call) {
-  if (/alt=sse|text\/event-stream|stream(?:Generate|ing)/i.test(call.args)) return true;
-  // 「この呼び出しの応答」を逐次読む／そのまま下流へ流す場合だけ対象外にする。
+function isStreamingCall(call) {
+  if (/alt=sse|text\/event-stream|stream(?:Generate|ing)/i.test(call.text)) return true;
+  if (!call.binding) return false;
+
+  // 「この呼び出しの応答」の body をどう扱っているかだけを見る。
   // 変数名で束縛しないと document.body のような無関係な .body で
   // ルールが黙って適用されなくなる。判定は必ず厳しい側（違反とみなす側）へ倒す。
-  if (!call.binding) return false;
-  const scope = text.slice(call.end + 1, call.end + 2000);
-  const body = String.raw`\b${call.binding}\.body\b`;
-  // 逐次読み出し: response.body.getReader() など
-  if (new RegExp(`${body}[\\s\\S]{0,40}?\\.(?:getReader|pipeTo|pipeThrough)\\(`).test(scope))
-    return true;
-  // 中継: new Response(upstream.body, ...) のように body をそのまま渡す
-  return new RegExp(`new Response\\(\\s*${body}`).test(scope);
+  let streaming = false;
+  const visit = (node) => {
+    if (streaming) return;
+    if (
+      ts.isPropertyAccessExpression(node) &&
+      node.name.text === "body" &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === call.binding
+    ) {
+      const parent = node.parent;
+      // 逐次読み出し: response.body.getReader() など
+      if (
+        parent &&
+        ts.isPropertyAccessExpression(parent) &&
+        ["getReader", "pipeTo", "pipeThrough"].includes(parent.name.text)
+      ) {
+        streaming = true;
+        return;
+      }
+      // 中継: new Response(upstream.body, ...) のように body をそのまま渡す
+      if (parent && ts.isNewExpression(parent) && parent.expression.getText() === "Response") {
+        streaming = true;
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(call.source);
+  return streaming;
+}
+
+const CREDENTIAL_HEADER = /^(?:authorization|x-goog-api-key|api[-_]?key)$/i;
+
+/**
+ * 資格情報をヘッダに載せている呼び出しか。
+ *
+ * 見るのは `fetch(...)` の第 2 引数に直接書かれたヘッダだけ。
+ * `Headers` を別の場所で組み立てて渡す書き方は、型情報まで辿らないと判定できないため
+ * 検出できない（.agents/rules/rules.md RULE-002 の「検出の限界」を参照）。
+ */
+function carriesCredential(call) {
+  const headers = optionProperty(call, "headers");
+  if (!headers || !ts.isPropertyAssignment(headers)) return false;
+  const value = headers.initializer;
+  if (!ts.isObjectLiteralExpression(value)) return false;
+  return value.properties.some((property) => {
+    if (!property.name) return false;
+    const name = ts.isIdentifier(property.name)
+      ? property.name.text
+      : ts.isStringLiteral(property.name)
+        ? property.name.text
+        : undefined;
+    return name !== undefined && CREDENTIAL_HEADER.test(name);
+  });
+}
+
+/** `redirect: "error"` が指定されているか。 */
+function hasRedirectError(call) {
+  const redirect = optionProperty(call, "redirect");
+  return Boolean(
+    redirect &&
+    ts.isPropertyAssignment(redirect) &&
+    ts.isStringLiteral(redirect.initializer) &&
+    redirect.initializer.text === "error",
+  );
 }
 
 // RULE-001: 単発の外向き fetch にはタイムアウトを設定する。
@@ -135,10 +207,10 @@ function isStreamingCall(text, call) {
 test("RULE-001: 単発の外向き fetch には signal を渡す", () => {
   const violations = [];
   for (const [file, text] of sources) {
-    for (const call of findFetchCalls(text)) {
-      if (/\bsignal\s*:/.test(call.args)) continue;
+    for (const call of findFetchCalls(text, file)) {
+      if (optionProperty(call, "signal")) continue;
       if (isRelayCall(call)) continue;
-      if (isStreamingCall(text, call)) continue;
+      if (isStreamingCall(call)) continue;
       violations.push(`${file}:${call.line}`);
     }
   }
@@ -155,10 +227,9 @@ test("RULE-001: 単発の外向き fetch には signal を渡す", () => {
 test('RULE-002: 資格情報を送る fetch は redirect: "error" を指定する', () => {
   const violations = [];
   for (const [file, text] of sources) {
-    for (const call of findFetchCalls(text)) {
-      const carriesCredential = /authorization|x-goog-api-key|api[-_]?key/i.test(call.args);
-      if (!carriesCredential) continue;
-      if (/redirect\s*:\s*"error"/.test(call.args)) continue;
+    for (const call of findFetchCalls(text, file)) {
+      if (!carriesCredential(call)) continue;
+      if (hasRedirectError(call)) continue;
       violations.push(`${file}:${call.line}`);
     }
   }
