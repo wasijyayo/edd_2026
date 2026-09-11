@@ -13,6 +13,10 @@ import "./style.css";
 type Profile = { derivedAt: string; eventCount: number; concepts: Concept[] };
 type Activity = { from: string; to: string; days: ActivityDay[] };
 
+// ログイン・ログアウトは単発リクエスト。応答が返らないまま待ち続けると
+// 画面が固まるので、締め切りを設ける（.agents/rules/rules.md RULE-001）。
+const AUTH_REQUEST_TIMEOUT_MS = 10_000;
+
 const errorText: Record<ApiError["kind"], string> = {
   session_expired: "ログインの有効期限が切れました",
   api_token_invalid: "サーバー側の API トークンが無効です。再ログインでは直りません。",
@@ -52,7 +56,10 @@ function Header() {
         <a href="/activity">推移</a>
         <button
           onClick={() =>
-            fetch("/logout", { method: "POST" }).finally(() => {
+            fetch("/logout", {
+              method: "POST",
+              signal: AbortSignal.timeout(AUTH_REQUEST_TIMEOUT_MS),
+            }).finally(() => {
               window.location.href = "/login";
             })
           }
@@ -77,6 +84,7 @@ function Login() {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ passphrase }),
+        signal: AbortSignal.timeout(AUTH_REQUEST_TIMEOUT_MS),
       });
       if (!response.ok) {
         setError(

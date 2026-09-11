@@ -16,5 +16,7 @@ pre-push:
       run: npm run check:worker-types
     web-build:
       run: npm run build:web
+    project-rules:
+      run: npm run test:project-rules
     test:
       run: npm run test

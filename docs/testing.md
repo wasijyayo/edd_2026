@@ -171,3 +171,16 @@ VS Code の外（ブラウザ、Slack、PDF、他のアプリ）でコピーし�
 VS Code本体を起動しない単体テストを `apps/vscode-extension/src/test/` に置く。実行は `npm test`。
 共有ドメインである `packages/domain` も VS Code に依存しないため、同じ方針で単体テストを
 追加する。VS Code 本体を必要とするE2Eテストは別途導入する。
+
+### プロジェクトルールの検査
+
+単体テストとは別に、リポジトリ全体の規約を検査するメタテストがある。
+
+```bash
+npm run test:package-scripts   # package scripts / CI / hook の配線
+npm run test:project-rules     # PR レビュー由来のプロジェクトルール
+```
+
+どちらも `npm test` から呼ばれ、CI と lefthook にも配線済みなので、通常は個別実行は不要。
+ルールの一覧は [`.agents/rules/rules.md`](../.agents/rules/rules.md)、
+その運用方針は [`guardrails.md`](guardrails.md) を参照。

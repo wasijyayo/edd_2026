@@ -37,6 +37,8 @@ jobs:
         run: npm run check:worker-types
       - name: Build Web assets
         run: npm run build:web
+      - name: Check project rules
+        run: npm run test:project-rules
       - name: Run tests
         run: npm run test
 

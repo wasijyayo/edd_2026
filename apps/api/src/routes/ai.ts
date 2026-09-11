@@ -42,6 +42,9 @@ export function createAiRoute(resolve: AiDepsResolver) {
       {
         method: "POST",
         headers: { "x-goog-api-key": deps.apiKey, "Content-Type": "application/json" },
+        // リダイレクトを自動追跡しない。転送先へ API キーごと送られると、
+        // 資格情報が意図しない相手に渡る（.agents/rules/rules.md RULE-002）。
+        redirect: "error",
         body: JSON.stringify({
           contents: [
             { parts: [{ text: `選択テキスト:\n${selection}\n\n質問:\n${normalizedQuestion}` }] },

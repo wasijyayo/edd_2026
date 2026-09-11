@@ -38,10 +38,16 @@
 │  └─ web/                      # Learning Mapと設定のWeb App
 ├─ packages/
 │  ├─ domain/                   # Concept、LearningEvent、Masteryの共有ドメイン
-├─ docs/
+├─ docs/                        # 人間が読む正史（設計・方針）
 │  ├─ idea.md                   # プロダクトの長期構想
 │  ├─ concepts.md               # Concept一覧・習熟度ルール・マイグレーション方針
-│  └─ testing.md                # デモケースと手動テスト手順
+│  ├─ testing.md                # デモケースと手動テスト手順
+│  └─ guardrails.md             # PRレビューからルールを育てる仕組みの方針
+├─ .agents/                     # エージェントが毎回読むもの
+│  ├─ rules/                    # プロジェクト固有ルールの正典と却下記録
+│  └─ skills/                   # スキル定義（.claude/ からリンク）
+├─ scripts/                     # リポジトリ横断の運用スクリプト
+├─ test/                        # 構成そのものを検査するメタテスト
 ├─ package.json                  # npm workspacesの入口
 └─ README.md
 ```
@@ -73,3 +79,7 @@ npm run dev              # API Server と Desktop をまとめて起動する
 `npm run dev` は API Server と Desktop を並列で起動し、どちらかが失敗するともう一方も停止する。
 VS Code Extension は、VS Codeでリポジトリルートを開いて `F5` でExtension Development Hostを起動します。
 全体方針は [`docs/architecture.md`](docs/architecture.md) を参照する。
+
+PR レビューから育てるプロジェクト固有ルールの運用は
+[`docs/guardrails.md`](docs/guardrails.md) を参照する。
+ルールの正典はエージェントが毎回読み込む [`.agents/rules/rules.md`](.agents/rules/rules.md) にある。
