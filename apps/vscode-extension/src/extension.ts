@@ -11,6 +11,7 @@ import { readClipboard, readTerminalSelection } from "./context/clipboard";
 import { collectFromEditor, collectFromText } from "./context/collector";
 import { rangesOverlap } from "./context/diagnostics";
 import { getOrCreateClientId, loadProfile, recordEvent } from "./learning/store";
+import { shouldRecordSolvedIndependently } from "./learning/resolution";
 import { syncEvent } from "./learning/sync";
 import { confirmSend } from "./ui/confirm";
 
@@ -200,7 +201,7 @@ export function activate(context: vscode.ExtensionContext): void {
       // 過去の会話（history）を踏まえてAIが「理解が解消された」と判断した場合のみ、
       // 自力解決の根拠を追加で記録する。履歴が無い最初のターンでは resolution は
       // 付かないため、ここは2回目以降のやり取りでしか発生しない。
-      if (aiResponse.answer.resolution === "resolved" && aiResponse.answer.conceptIds.length > 0) {
+      if (shouldRecordSolvedIndependently(history, aiResponse.answer)) {
         await persistEvent({
           id: randomUUID(),
           occurredAt: nowIso(),
