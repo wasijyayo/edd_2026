@@ -12,11 +12,13 @@ export function createChatAIRequest(
   context: CodeContext,
   question: string,
   history: ConversationTurn[] = [],
+  diagnostics: string[] = [],
 ): AIRequest {
   return {
     mode: "explain",
     question,
     context,
+    ...(diagnostics.length > 0 ? { diagnostics } : {}),
     // 空配列を持たせるとテストの期待値やログが history: [] で埋まり続けるため、
     // 無い場合はキー自体を省略する。
     ...(history.length > 0 ? { history } : {}),

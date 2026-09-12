@@ -21,7 +21,7 @@ test("Chatを開く前に収集した文脈をParticipantのリクエストま�
 
   const id = pending.set(context);
 
-  expect(pending.take(id)).toBe(context);
+  expect(pending.take(id)?.context).toBe(context);
 });
 
 test("文脈を消費して後続の無関係なChatリクエストへ再利用しない", () => {
@@ -34,7 +34,7 @@ test("文脈を消費して後続の無関係なChatリクエストへ再利用�
   };
   const id = pending.set(context);
 
-  expect(pending.take(id)).toBe(context);
+  expect(pending.take(id)?.context).toBe(context);
   expect(pending.take(id)).toBeUndefined();
 });
 
@@ -55,8 +55,8 @@ test("Chatを2回開いた場合も文脈を別々に保持する", () => {
   const firstId = pending.set(first);
   const secondId = pending.set(second);
 
-  expect(pending.take(firstId)).toBe(first);
-  expect(pending.take(secondId)).toBe(second);
+  expect(pending.take(firstId)?.context).toBe(first);
+  expect(pending.take(secondId)?.context).toBe(second);
 });
 
 test("Chatを開けなかった文脈は破棄して残さない", () => {
@@ -94,5 +94,20 @@ test("破棄しても他の文脈には影響しない", () => {
 
   pending.discard(discardedId);
 
-  expect(pending.take(keptId)).toBe(kept);
+  expect(pending.take(keptId)?.context).toBe(kept);
+});
+
+test("選択時に取得したDiagnosticsを同じChatリクエストまで保持する", () => {
+  const pending = new PendingChatContext();
+  const context = {
+    code: "const value: number = 'text';",
+    source: "editor" as const,
+    contextLevel: 2 as const,
+    surroundingCode: "",
+  };
+  const diagnostics = ["Type 'string' is not assignable to type 'number'."];
+
+  const id = pending.set(context, diagnostics);
+
+  expect(pending.take(id)).toEqual({ context, diagnostics });
 });

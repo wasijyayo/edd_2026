@@ -1,5 +1,11 @@
 import type { CodeContext } from "@gakushu-sochi/domain";
 
+/** Chat を開いた時点で固定する、AIリクエスト用の入力。 */
+export interface PendingAIRequest {
+  context: CodeContext;
+  diagnostics: string[];
+}
+
 /**
  * Chat を開く操作時に収集した文脈。
  *
@@ -8,21 +14,21 @@ import type { CodeContext } from "@gakushu-sochi/domain";
  * 保持する。Participant 実装時は `take()` の値を AIRequest に載せる。
  */
 export class PendingChatContext {
-  private readonly values = new Map<string, CodeContext>();
+  private readonly values = new Map<string, PendingAIRequest>();
   private nextId = 1;
 
-  set(context: CodeContext): string {
+  set(context: CodeContext, diagnostics: string[] = []): string {
     const id = `context-${this.nextId}`;
     this.nextId += 1;
-    this.values.set(id, context);
+    this.values.set(id, { context, diagnostics });
     return id;
   }
 
   /** 最初の質問にだけ文脈を渡し、別の会話への混入を防ぐ。 */
-  take(id: string): CodeContext | undefined {
-    const context = this.values.get(id);
+  take(id: string): PendingAIRequest | undefined {
+    const request = this.values.get(id);
     this.values.delete(id);
-    return context;
+    return request;
   }
 
   /**
